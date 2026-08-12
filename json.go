@@ -1,6 +1,6 @@
 package solana_go
 
-import "encoding/json"
+import "github.com/bytedance/sonic"
 
 // jsonUnquote extracts the value of a JSON-encoded string. Base58 and base64
 // payloads never contain characters that need JSON escaping, so it takes a
@@ -21,6 +21,6 @@ func jsonUnquote(data []byte) (string, error) {
 		}
 	}
 	var s string
-	err := json.Unmarshal(data, &s)
+	err := sonic.Unmarshal(data, &s)
 	return s, err
 }

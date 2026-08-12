@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/bytedance/sonic"
 	"github.com/fluxrpc/base58"
 )
 
@@ -120,6 +121,14 @@ func (tx Transaction) MarshalJSON() ([]byte, error) {
 	buf = append(buf, `],"message":`...)
 	buf = append(buf, message...)
 	return append(buf, '}'), nil
+}
+
+// UnmarshalJSON decodes the transaction with sonic regardless of which JSON
+// package the caller uses on the outer value.
+func (tx *Transaction) UnmarshalJSON(data []byte) error {
+	// The alias drops this method so sonic decodes the fields directly.
+	type transactionAlias Transaction
+	return sonic.Unmarshal(data, (*transactionAlias)(tx))
 }
 
 // privateKeyGetter looks up the private key of the given public key,

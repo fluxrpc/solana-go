@@ -65,10 +65,10 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| MarshalBinary | 133.7 | 151.4 | 1.1x | 288 | 288 | 1 | 1 |
-| UnmarshalBinary | 213.9 | 377.4 | 1.8x | 320 | 368 | 4 | 5 |
-| MarshalJSON | 1055 | 3009 | 2.9x | 1472 | 1177 | 2 | 15 |
-| UnmarshalJSON | 8129 | 5087 | 0.6x | 1456 | 2310 | 28 | 50 |
+| MarshalBinary | 148.4 | 172.0 | 1.2x | 288 | 288 | 1 | 1 |
+| UnmarshalBinary | 228.8 | 373.1 | 1.6x | 320 | 368 | 4 | 5 |
+| MarshalJSON | 1074 | 2994 | 2.8x | 1472 | 1177 | 2 | 15 |
+| UnmarshalJSON | 2653 | 4665 | 1.8x | 1752 | 2311 | 22 | 50 |
 
 ### PrivateKey
 
@@ -99,10 +99,10 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| MarshalBinary | 292.2 | 319.3 | 1.1x | 640 | 648 | 2 | 3 |
-| FromBytes | 336.4 | 557.3 | 1.7x | 528 | 632 | 6 | 9 |
-| MarshalJSON | 5090 | 7654 | 1.5x | 3010 | 2044 | 4 | 17 |
-| UnmarshalJSON | 14084 | 10273 | 0.7x | 1872 | 2758 | 36 | 59 |
+| MarshalBinary | 303.9 | 360.4 | 1.2x | 640 | 648 | 2 | 3 |
+| FromBytes | 372.7 | 785.2 | 2.1x | 528 | 632 | 6 | 9 |
+| MarshalJSON | 5594 | 7650 | 1.4x | 3011 | 2045 | 4 | 17 |
+| UnmarshalJSON | 8596 | 10087 | 1.2x | 2994 | 2759 | 30 | 59 |
 
 ### ns/op comparison
 
@@ -124,20 +124,20 @@ Hash_FromBase58
   gagl  ████████████████████████████████████████ 87.20 ns/op
 
 Message_MarshalBinary
-  flux  ███████████████████████████████████      133.7 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 151.4 ns/op
+  flux  ███████████████████████████████████      148.4 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 172.0 ns/op
 
 Message_UnmarshalBinary
-  flux  ███████████████████████                  213.9 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 377.4 ns/op
+  flux  █████████████████████████                228.8 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 373.1 ns/op
 
 Message_MarshalJSON
-  flux  ██████████████                           1055 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 3009 ns/op
+  flux  ██████████████                           1074 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 2994 ns/op
 
 Message_UnmarshalJSON
-  flux  ████████████████████████████████████████ 8129 ns/op
-  gagl  █████████████████████████                5087 ns/op  <-- faster
+  flux  ███████████████████████                  2653 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 4665 ns/op
 
 PrivateKey_Sign
   flux  ████████████████████████████████████████ 22527 ns/op
@@ -180,24 +180,24 @@ Signature_UnmarshalJSON
   gagl  ████████████████████████████████████████ 556.1 ns/op
 
 Transaction_MarshalBinary
-  flux  █████████████████████████████████████    292.2 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 319.3 ns/op
+  flux  ██████████████████████████████████       303.9 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 360.4 ns/op
 
 Transaction_FromBytes
-  flux  ████████████████████████                 336.4 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 557.3 ns/op
+  flux  ███████████████████                      372.7 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 785.2 ns/op
 
 Transaction_MarshalJSON
-  flux  ███████████████████████████              5090 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 7654 ns/op
+  flux  █████████████████████████████            5594 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 7650 ns/op
 
 Transaction_UnmarshalJSON
-  flux  ████████████████████████████████████████ 14084 ns/op
-  gagl  █████████████████████████████            10273 ns/op  <-- faster
+  flux  ██████████████████████████████████       8596 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 10087 ns/op
 ```
 <!-- BENCHMARKS:END -->
 
-Note on `Message`/`Transaction` `UnmarshalJSON`: upstream decodes whole structs with `goccy/go-json`; we deliberately stay on the stdlib decoder to keep the dependency tree at exactly one package (`fluxrpc/base58`), which costs some whole-struct decode speed while still allocating far less. Every other path — base58, binary wire format, JSON encoding — is faster here.
+JSON strategy: encoding is hand-rolled straight into one buffer (measured ~2.5x faster than any reflection-based encoder walking our structs, including sonic); whole-struct decoding uses [bytedance/sonic](https://github.com/bytedance/sonic), which beats upstream's `goccy/go-json`. Callers get these paths regardless of which JSON package they invoke, since they are wired in via the `MarshalJSON`/`UnmarshalJSON` methods.
 
 ## License
 

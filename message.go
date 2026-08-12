@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/bytedance/sonic"
 	"github.com/fluxrpc/base58"
 )
 
@@ -44,7 +45,7 @@ func (slice Uint8SliceAsNum) MarshalJSON() ([]byte, error) {
 
 func (slice *Uint8SliceAsNum) UnmarshalJSON(data []byte) error {
 	var values []uint16
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := sonic.Unmarshal(data, &values); err != nil {
 		return err
 	}
 	out := make(Uint8SliceAsNum, len(values))
@@ -261,7 +262,7 @@ func (mx *Message) UnmarshalJSON(data []byte) error {
 		Instructions        []CompiledInstruction `json:"instructions"`
 		AddressTableLookups *json.RawMessage      `json:"addressTableLookups"`
 	}{}
-	if err := json.Unmarshal(data, &aux); err != nil {
+	if err := sonic.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 	mx.AccountKeys = aux.AccountKeys
@@ -275,7 +276,7 @@ func (mx *Message) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	mx.version = MessageVersionV0
-	return json.Unmarshal(*aux.AddressTableLookups, &mx.AddressTableLookups)
+	return sonic.Unmarshal(*aux.AddressTableLookups, &mx.AddressTableLookups)
 }
 
 func (mx *Message) MarshalBinary() ([]byte, error) {
