@@ -197,6 +197,8 @@ Transaction_UnmarshalJSON
 ```
 <!-- BENCHMARKS:END -->
 
+Note on `Message`/`Transaction` `UnmarshalJSON`: upstream decodes whole structs with `goccy/go-json`; we deliberately stay on the stdlib decoder to keep the dependency tree at exactly one package (`fluxrpc/base58`), which costs some whole-struct decode speed while still allocating far less. Every other path — base58, binary wire format, JSON encoding — is faster here.
+
 ## License
 
 MIT
