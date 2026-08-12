@@ -110,3 +110,46 @@ func BenchmarkSignature_UnmarshalJSON(b *testing.B) {
 		sinkGaglSig = s
 	})
 }
+
+// A real signed message pair for Verify: sign with a fixed keypair via each
+// implementation's own types.
+func BenchmarkSignature_Verify(b *testing.B) {
+	msg := make([]byte, 200)
+	for i := range msg {
+		msg[i] = byte(i)
+	}
+
+	fluxKey, err := flux.NewRandomPrivateKey()
+	if err != nil {
+		b.Fatal(err)
+	}
+	fluxSigned, err := fluxKey.Sign(msg)
+	if err != nil {
+		b.Fatal(err)
+	}
+	fluxPub := fluxKey.PublicKey()
+
+	gaglKey := gagl.PrivateKey(fluxKey)
+	gaglSigned, err := gaglKey.Sign(msg)
+	if err != nil {
+		b.Fatal(err)
+	}
+	gaglPub := gaglKey.PublicKey()
+
+	b.Run("flux", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if !fluxSigned.Verify(fluxPub, msg) {
+				b.Fatal("verify failed")
+			}
+		}
+	})
+	b.Run("gagl", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if !gaglSigned.Verify(gaglPub, msg) {
+				b.Fatal("verify failed")
+			}
+		}
+	})
+}

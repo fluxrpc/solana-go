@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/fluxrpc/base58"
+	voied25519 "github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 
 // PrivateKey is a 64-byte ed25519 private key (seed followed by public key),
@@ -64,7 +65,7 @@ func (k PrivateKey) Sign(msg []byte) (Signature, error) {
 	if !k.IsValid() {
 		return Signature{}, fmt.Errorf("invalid private key size, expected %d, got %d", ed25519.PrivateKeySize, len(k))
 	}
-	return SignatureFromBytes(ed25519.Sign(ed25519.PrivateKey(k), msg)), nil
+	return SignatureFromBytes(voied25519.Sign(voied25519.PrivateKey(k), msg)), nil
 }
 
 func (k PrivateKey) Bytes() []byte {

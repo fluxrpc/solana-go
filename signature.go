@@ -1,10 +1,10 @@
 package solana_go
 
 import (
-	"crypto/ed25519"
 	"fmt"
 
 	"github.com/fluxrpc/base58"
+	voied25519 "github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 
 const (
@@ -51,10 +51,15 @@ func (s Signature) Bytes() []byte {
 	return s[:]
 }
 
+// verifyOptsStdLib makes voi match crypto/ed25519 verification semantics.
+var verifyOptsStdLib = &voied25519.Options{
+	Verify: voied25519.VerifyOptionsStdLib,
+}
+
 // Verify reports whether the signature is valid for the given public key and
 // message.
 func (s Signature) Verify(pubkey PublicKey, msg []byte) bool {
-	return ed25519.Verify(pubkey[:], msg, s[:])
+	return voied25519.VerifyWithOptions(pubkey[:], msg, s[:], verifyOptsStdLib)
 }
 
 func (s Signature) MarshalJSON() ([]byte, error) {

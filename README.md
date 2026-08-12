@@ -8,7 +8,7 @@ A lean port of the core [solana-go](https://github.com/gagliardetto/solana-go) t
 - Zero-allocation-conscious JSON marshaling (direct quoted-buffer writes, no `json.Marshal` round trips for base58/base64 strings).
 - Single-allocation binary (wire format) encoding with exact size precomputation.
 - Only supported serializations: `String`, `Bytes` (binary wire format) and JSON. No BSON, no text marshalers, no kitchen sink.
-- Two dependencies: `fluxrpc/base58` for base58 and `bytedance/sonic` for JSON decoding.
+- Three dependencies, each earning its keep in the benchmarks: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify).
 
 ## Types
 
@@ -82,8 +82,8 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Sign | 22527 | 21112 | 0.9x | 0 | 64 | 0 | 1 |
-| PublicKey | 2.65 | 9995 | 3766.0x | 0 | 0 | 0 | 0 |
+| Sign | 11589 | 21398 | 1.8x | 64 | 64 | 1 | 1 |
+| PublicKey | 2.49 | 10753 | 4311.5x | 0 | 0 | 0 | 0 |
 
 ### PublicKey
 
@@ -98,10 +98,11 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| String | 140.8 | 478.3 | 3.4x | 96 | 96 | 1 | 1 |
-| FromBase58 | 71.19 | 361.8 | 5.1x | 0 | 0 | 0 | 0 |
-| MarshalJSON | 135.6 | 482.5 | 3.6x | 96 | 96 | 1 | 1 |
-| UnmarshalJSON | 167.0 | 556.1 | 3.3x | 96 | 112 | 1 | 2 |
+| String | 138.3 | 482.3 | 3.5x | 96 | 96 | 1 | 1 |
+| FromBase58 | 67.77 | 339.5 | 5.0x | 0 | 0 | 0 | 0 |
+| MarshalJSON | 136.2 | 456.4 | 3.4x | 96 | 96 | 1 | 1 |
+| UnmarshalJSON | 160.4 | 562.3 | 3.5x | 96 | 112 | 1 | 2 |
+| Verify | 32325 | 31416 | 1.0x | 0 | 0 | 0 | 0 |
 
 ### Transaction
 
@@ -148,12 +149,12 @@ Message_UnmarshalJSON
   gagl  ████████████████████████████████████████ 4665 ns/op
 
 PrivateKey_Sign
-  flux  ████████████████████████████████████████ 22527 ns/op
-  gagl  █████████████████████████████████████    21112 ns/op  <-- faster
+  flux  ██████████████████████                   11589 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 21398 ns/op
 
 PrivateKey_PublicKey
-  flux  █                                        2.65 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 9995 ns/op
+  flux  █                                        2.49 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 10753 ns/op
 
 PublicKey_String
   flux  ████████████████████████                 72.22 ns/op  <-- faster
@@ -172,20 +173,24 @@ PublicKey_UnmarshalJSON
   gagl  ████████████████████████████████████████ 207.4 ns/op
 
 Signature_String
-  flux  ████████████                             140.8 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 478.3 ns/op
+  flux  ███████████                              138.3 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 482.3 ns/op
 
 Signature_FromBase58
-  flux  ████████                                 71.19 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 361.8 ns/op
+  flux  ████████                                 67.77 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 339.5 ns/op
 
 Signature_MarshalJSON
-  flux  ███████████                              135.6 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 482.5 ns/op
+  flux  ████████████                             136.2 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 456.4 ns/op
 
 Signature_UnmarshalJSON
-  flux  ████████████                             167.0 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 556.1 ns/op
+  flux  ███████████                              160.4 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 562.3 ns/op
+
+Signature_Verify
+  flux  ████████████████████████████████████████ 32325 ns/op
+  gagl  ███████████████████████████████████████  31416 ns/op  <-- faster
 
 Transaction_MarshalBinary
   flux  ██████████████████████████████████       303.9 ns/op  <-- faster
