@@ -95,6 +95,15 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 | MarshalJSON | 135.6 | 482.5 | 3.6x | 96 | 96 | 1 | 1 |
 | UnmarshalJSON | 167.0 | 556.1 | 3.3x | 96 | 112 | 1 | 2 |
 
+### Transaction
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| MarshalBinary | 292.2 | 319.3 | 1.1x | 640 | 648 | 2 | 3 |
+| FromBytes | 336.4 | 557.3 | 1.7x | 528 | 632 | 6 | 9 |
+| MarshalJSON | 5090 | 7654 | 1.5x | 3010 | 2044 | 4 | 17 |
+| UnmarshalJSON | 14084 | 10273 | 0.7x | 1872 | 2758 | 36 | 59 |
+
 ### ns/op comparison
 
 ```text
@@ -169,6 +178,22 @@ Signature_MarshalJSON
 Signature_UnmarshalJSON
   flux  ████████████                             167.0 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 556.1 ns/op
+
+Transaction_MarshalBinary
+  flux  █████████████████████████████████████    292.2 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 319.3 ns/op
+
+Transaction_FromBytes
+  flux  ████████████████████████                 336.4 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 557.3 ns/op
+
+Transaction_MarshalJSON
+  flux  ███████████████████████████              5090 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 7654 ns/op
+
+Transaction_UnmarshalJSON
+  flux  ████████████████████████████████████████ 14084 ns/op
+  gagl  █████████████████████████████            10273 ns/op  <-- faster
 ```
 <!-- BENCHMARKS:END -->
 
