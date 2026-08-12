@@ -56,6 +56,15 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 | MarshalJSON | 69.19 | 123.1 | 1.8x | 48 | 48 | 1 | 1 |
 | UnmarshalJSON | 101.2 | 207.4 | 2.0x | 48 | 64 | 1 | 2 |
 
+### Signature
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| String | 140.8 | 478.3 | 3.4x | 96 | 96 | 1 | 1 |
+| FromBase58 | 71.19 | 361.8 | 5.1x | 0 | 0 | 0 | 0 |
+| MarshalJSON | 135.6 | 482.5 | 3.6x | 96 | 96 | 1 | 1 |
+| UnmarshalJSON | 167.0 | 556.1 | 3.3x | 96 | 112 | 1 | 2 |
+
 ### ns/op comparison
 
 ```text
@@ -74,6 +83,22 @@ PublicKey_MarshalJSON
 PublicKey_UnmarshalJSON
   flux  ████████████████████                     101.2 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 207.4 ns/op
+
+Signature_String
+  flux  ████████████                             140.8 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 478.3 ns/op
+
+Signature_FromBase58
+  flux  ████████                                 71.19 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 361.8 ns/op
+
+Signature_MarshalJSON
+  flux  ███████████                              135.6 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 482.5 ns/op
+
+Signature_UnmarshalJSON
+  flux  ████████████                             167.0 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 556.1 ns/op
 ```
 <!-- BENCHMARKS:END -->
 
