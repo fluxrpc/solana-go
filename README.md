@@ -47,6 +47,13 @@ Comparing `github.com/fluxrpc/solana-go` (with `github.com/fluxrpc/base58`) agai
 
 Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
+### Base58Data
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| MarshalJSON | 538.5 | 8196 | 15.2x | 208 | 592 | 1 | 5 |
+| UnmarshalJSON | 357.9 | 7602 | 21.2x | 240 | 354 | 2 | 4 |
+
 ### Hash
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
@@ -75,6 +82,14 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 ### ns/op comparison
 
 ```text
+Base58Data_MarshalJSON
+  flux  ███                                      538.5 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 8196 ns/op
+
+Base58Data_UnmarshalJSON
+  flux  ██                                       357.9 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 7602 ns/op
+
 Hash_String
   flux  ███████████████████████                  64.39 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 113.2 ns/op
