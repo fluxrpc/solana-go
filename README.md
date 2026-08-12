@@ -61,6 +61,13 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 | String | 64.39 | 113.2 | 1.8x | 48 | 48 | 1 | 1 |
 | FromBase58 | 42.28 | 87.20 | 2.1x | 0 | 0 | 0 | 0 |
 
+### PrivateKey
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Sign | 22527 | 21112 | 0.9x | 0 | 64 | 0 | 1 |
+| PublicKey | 2.65 | 9995 | 3766.0x | 0 | 0 | 0 | 0 |
+
 ### PublicKey
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
@@ -97,6 +104,14 @@ Hash_String
 Hash_FromBase58
   flux  ███████████████████                      42.28 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 87.20 ns/op
+
+PrivateKey_Sign
+  flux  ████████████████████████████████████████ 22527 ns/op
+  gagl  █████████████████████████████████████    21112 ns/op  <-- faster
+
+PrivateKey_PublicKey
+  flux  █                                        2.65 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 9995 ns/op
 
 PublicKey_String
   flux  ████████████████████████                 72.22 ns/op  <-- faster
