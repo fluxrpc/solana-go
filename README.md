@@ -47,6 +47,13 @@ Comparing `github.com/fluxrpc/solana-go` (with `github.com/fluxrpc/base58`) agai
 
 Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
+### Hash
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| String | 64.39 | 113.2 | 1.8x | 48 | 48 | 1 | 1 |
+| FromBase58 | 42.28 | 87.20 | 2.1x | 0 | 0 | 0 | 0 |
+
 ### PublicKey
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
@@ -68,6 +75,14 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 ### ns/op comparison
 
 ```text
+Hash_String
+  flux  ███████████████████████                  64.39 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 113.2 ns/op
+
+Hash_FromBase58
+  flux  ███████████████████                      42.28 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 87.20 ns/op
+
 PublicKey_String
   flux  ████████████████████████                 72.22 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 120.3 ns/op
