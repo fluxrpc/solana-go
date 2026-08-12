@@ -61,6 +61,15 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 | String | 64.39 | 113.2 | 1.8x | 48 | 48 | 1 | 1 |
 | FromBase58 | 42.28 | 87.20 | 2.1x | 0 | 0 | 0 | 0 |
 
+### Message
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| MarshalBinary | 133.7 | 151.4 | 1.1x | 288 | 288 | 1 | 1 |
+| UnmarshalBinary | 213.9 | 377.4 | 1.8x | 320 | 368 | 4 | 5 |
+| MarshalJSON | 1055 | 3009 | 2.9x | 1472 | 1177 | 2 | 15 |
+| UnmarshalJSON | 8129 | 5087 | 0.6x | 1456 | 2310 | 28 | 50 |
+
 ### PrivateKey
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
@@ -104,6 +113,22 @@ Hash_String
 Hash_FromBase58
   flux  ███████████████████                      42.28 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 87.20 ns/op
+
+Message_MarshalBinary
+  flux  ███████████████████████████████████      133.7 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 151.4 ns/op
+
+Message_UnmarshalBinary
+  flux  ███████████████████████                  213.9 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 377.4 ns/op
+
+Message_MarshalJSON
+  flux  ██████████████                           1055 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 3009 ns/op
+
+Message_UnmarshalJSON
+  flux  ████████████████████████████████████████ 8129 ns/op
+  gagl  █████████████████████████                5087 ns/op  <-- faster
 
 PrivateKey_Sign
   flux  ████████████████████████████████████████ 22527 ns/op
