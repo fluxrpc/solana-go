@@ -46,7 +46,7 @@ func TestDataBytesOrJSONParsed(t *testing.T) {
 
 func TestDataBytesOrJSONRejectsInvalidInput(t *testing.T) {
 	tests := []string{
-		`["dGVzdA==","base64+zstd"]`, // unsupported by design
+		`["dGVzdA==","base64+zstd"]`, // valid base64 but not a zstd frame
 		`"just a string"`,
 		`42`,
 	}

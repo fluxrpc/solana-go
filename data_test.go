@@ -105,8 +105,40 @@ func TestBase64String(t *testing.T) {
 	}
 }
 
+func TestDataZstdKnownAnswer(t *testing.T) {
+	// Fixture from upstream gagliardetto/solana-go rpc/types_test.go:
+	// zstd-compressed, base64-encoded "hello-world".
+	var got Data
+	if err := json.Unmarshal([]byte(`["KLUv/QQAWQAAaGVsbG8td29ybGTcLcaB","base64+zstd"]`), &got); err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Content) != "hello-world" || got.Encoding != EncodingBase64Zstd {
+		t.Fatalf("got %q (%s)", got.Content, got.Encoding)
+	}
+
+	// And content survives a full marshal/unmarshal cycle through our own
+	// compressor.
+	back := jsonRoundTripData(t, got)
+	if string(back.Content) != "hello-world" {
+		t.Fatalf("round trip = %q", back.Content)
+	}
+}
+
+func jsonRoundTripData(t *testing.T, want Data) Data {
+	t.Helper()
+	data, err := json.Marshal(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got Data
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
 func TestDataJSONRoundTrip(t *testing.T) {
-	for _, encoding := range []EncodingType{EncodingBase58, EncodingBase64} {
+	for _, encoding := range []EncodingType{EncodingBase58, EncodingBase64, EncodingBase64Zstd} {
 		want := Data{Content: testPayload(), Encoding: encoding}
 
 		data, err := json.Marshal(want)
@@ -140,7 +172,7 @@ func TestDataUnmarshalJSONEmptyContent(t *testing.T) {
 func TestDataMarshalJSONRejectsUnsupportedEncoding(t *testing.T) {
 	// Non-empty content with an encoding String() cannot render must error
 	// instead of silently emitting empty content.
-	for _, encoding := range []EncodingType{EncodingBase64Zstd, EncodingJSONParsed, ""} {
+	for _, encoding := range []EncodingType{EncodingJSONParsed, ""} {
 		if _, err := json.Marshal(Data{Content: []byte{1}, Encoding: encoding}); err == nil {
 			t.Errorf("Marshal with encoding %q unexpectedly succeeded", encoding)
 		}
@@ -168,7 +200,7 @@ func TestDataUnmarshalJSONRejectsInvalidInput(t *testing.T) {
 	tests := []string{
 		`["AQID"]`,                  // wrong tuple length
 		`["AQID","base64","extra"]`, // wrong tuple length
-		`["AQID","base64+zstd"]`,    // unsupported by design
+		`["AQID","base64+zstd"]`,    // valid base64 but not a zstd frame
 		`["AQID","what"]`,           // unknown encoding
 		`["","what"]`,               // unknown encoding, even with empty content
 		`["","evil\"],[\"x"]`,       // encoding must never be stored unvalidated

@@ -127,16 +127,14 @@ func TestGetBlockOptsValidate(t *testing.T) {
 		solana.EncodingJSONParsed,
 		solana.EncodingBase58,
 		solana.EncodingBase64,
+		solana.EncodingBase64Zstd,
 	} {
 		if err := (&GetBlockOpts{Encoding: encoding}).Validate(); err != nil {
 			t.Fatalf("encoding %q: %v", encoding, err)
 		}
 	}
-	// base64+zstd is rejected up front: this SDK cannot decode the response.
-	for _, encoding := range []solana.EncodingType{solana.EncodingBase64Zstd, "base99"} {
-		if err := (&GetBlockOpts{Encoding: encoding}).Validate(); err == nil {
-			t.Fatalf("encoding %q unexpectedly accepted", encoding)
-		}
+	if err := (&GetBlockOpts{Encoding: "base99"}).Validate(); err == nil {
+		t.Fatal("expected error for unsupported encoding")
 	}
 }
 

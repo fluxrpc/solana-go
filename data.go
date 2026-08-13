@@ -3,9 +3,11 @@ package solana_go
 import (
 	"encoding/base64"
 	"fmt"
+	"sync"
 
 	"github.com/bytedance/sonic"
 	"github.com/fluxrpc/base58"
+	"github.com/klauspost/compress/zstd"
 )
 
 // Base58 is a byte slice that is JSON-encoded as a base58 string.
@@ -68,12 +70,35 @@ func (t Base64) String() string {
 }
 
 // Data is content plus the encoding it travels in, JSON-encoded as the RPC
-// tuple ["<encoded content>", "<encoding>"].
-// NOTE: base64+zstd data cannot be decoded by this SDK (kept out to avoid a
-// compression dependency); request base64 instead.
+// tuple ["<encoded content>", "<encoding>"]. All spec encodings are
+// supported, including base64+zstd.
 type Data struct {
 	Content  []byte
 	Encoding EncodingType
+}
+
+// Package-level zstd codecs, lazily initialized. Both are safe for
+// concurrent EncodeAll/DecodeAll use; the decoder's default 64MiB memory
+// limit comfortably bounds any legitimate account payload.
+var (
+	zstdDecoder     *zstd.Decoder
+	zstdDecoderOnce sync.Once
+	zstdEncoder     *zstd.Encoder
+	zstdEncoderOnce sync.Once
+)
+
+func getZstdDecoder() *zstd.Decoder {
+	zstdDecoderOnce.Do(func() {
+		zstdDecoder, _ = zstd.NewReader(nil, zstd.WithDecoderConcurrency(0))
+	})
+	return zstdDecoder
+}
+
+func getZstdEncoder() *zstd.Encoder {
+	zstdEncoderOnce.Do(func() {
+		zstdEncoder, _ = zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1))
+	})
+	return zstdEncoder
 }
 
 // MarshalJSON writes ["<content>","<encoding>"] directly into one buffer,
@@ -99,16 +124,26 @@ func (t Data) MarshalJSON() ([]byte, error) {
 		buf = append(buf, `","`...)
 		buf = append(buf, t.Encoding...)
 		return append(buf, '"', ']'), nil
-	case EncodingBase64Zstd, "":
-		// Representable only with no content (the zero value, or empty
-		// account data).
+	case EncodingBase64Zstd:
+		if len(t.Content) == 0 {
+			return []byte(`["","` + EncodingBase64Zstd + `"]`), nil
+		}
+		compressed := getZstdEncoder().EncodeAll(t.Content, nil)
+		n := base64.StdEncoding.EncodedLen(len(compressed))
+		buf := make([]byte, 0, n+len(t.Encoding)+8)
+		buf = append(buf, '[', '"')
+		off := len(buf)
+		buf = buf[:off+n]
+		base64.StdEncoding.Encode(buf[off:], compressed)
+		buf = append(buf, `","`...)
+		buf = append(buf, t.Encoding...)
+		return append(buf, '"', ']'), nil
+	case "":
+		// The zero value is representable only with no content.
 		if len(t.Content) > 0 {
 			return nil, fmt.Errorf("cannot marshal Data with unsupported encoding %q", t.Encoding)
 		}
-		buf := make([]byte, 0, len(t.Encoding)+8)
-		buf = append(buf, `["","`...)
-		buf = append(buf, t.Encoding...)
-		return append(buf, '"', ']'), nil
+		return []byte(`["",""]`), nil
 	default:
 		return nil, fmt.Errorf("cannot marshal Data with unsupported encoding %q", t.Encoding)
 	}
@@ -163,7 +198,10 @@ func (t *Data) UnmarshalJSON(data []byte) error {
 	case EncodingBase64:
 		t.Content, err = base64.StdEncoding.DecodeString(content)
 	default: // EncodingBase64Zstd
-		err = fmt.Errorf("base64+zstd data is not supported by this SDK; request base64 instead")
+		var compressed []byte
+		if compressed, err = base64.StdEncoding.DecodeString(content); err == nil {
+			t.Content, err = getZstdDecoder().DecodeAll(compressed, nil)
+		}
 	}
 	return err
 }
@@ -239,6 +277,8 @@ func (t Data) String() string {
 		return base58.Encode(t.Content)
 	case EncodingBase64:
 		return base64.StdEncoding.EncodeToString(t.Content)
+	case EncodingBase64Zstd:
+		return base64.StdEncoding.EncodeToString(getZstdEncoder().EncodeAll(t.Content, nil))
 	default:
 		return ""
 	}

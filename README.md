@@ -8,7 +8,7 @@ A lean port of the core [solana-go](https://github.com/gagliardetto/solana-go) t
 - Zero-allocation-conscious JSON marshaling (direct quoted-buffer writes, no `json.Marshal` round trips for base58/base64 strings).
 - Single-allocation binary (wire format) encoding with exact size precomputation.
 - Only supported serializations: `String`, `Bytes` (binary wire format) and JSON. No BSON, no text marshalers, no kitchen sink.
-- Three dependencies, each earning its keep in the benchmarks: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify).
+- Four dependencies, each earning its keep: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify), `klauspost/compress` (base64+zstd account data).
 
 ## Types
 
