@@ -276,6 +276,12 @@ func TestShortvecRejectsBadInput(t *testing.T) {
 		"beyond uint16":    {0xff, 0xff, 0x7f},
 		"3-byte overflow":  {0x80, 0x80, 0x80},
 		"value over limit": appendShortvecLen(nil, 0x10000),
+		// Non-minimal encodings must be rejected like the Solana runtime
+		// does, else one message would have several byte representations.
+		"alias 2-byte zero": {0x80, 0x00},
+		"alias 2-byte one":  {0x81, 0x00},
+		"alias 3-byte":      {0x80, 0x80, 0x00},
+		"alias 127":         {0xff, 0x00},
 	}
 	for name, data := range tests {
 		if _, _, err := decodeShortvecLen(data); err == nil {

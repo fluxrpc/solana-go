@@ -252,9 +252,11 @@ func appendUint8Array(buf []byte, values []uint8) []byte {
 // messages; its presence in the JSON is what distinguishes V0 from legacy,
 // since the private `version` field has no wire representation.
 func (mx *Message) UnmarshalJSON(data []byte) error {
-	// Decode `addressTableLookups` via a RawMessage pointer so presence of the
-	// key can be detected in a single parse. A non-nil pointer means the key
-	// was present in the JSON (even if its value is `null`), which selects V0.
+	// Decode `addressTableLookups` via a RawMessage pointer so presence of
+	// the key can be detected in a single parse. A non-nil pointer means the
+	// key was present with a non-null value, which selects V0; an absent key
+	// or an explicit null both decode to nil and select legacy (matching
+	// upstream behavior).
 	aux := struct {
 		AccountKeys         []PublicKey           `json:"accountKeys"`
 		Header              MessageHeader         `json:"header"`
@@ -370,6 +372,9 @@ func (mx *Message) appendBody(buf []byte) []byte {
 
 // UnmarshalBinary decodes a legacy or versioned (V0) message.
 // Trailing bytes after the message are ignored.
+//
+// NOTE: instruction data aliases the input buffer to avoid copies; the
+// caller must not mutate or reuse data while the message is alive.
 func (mx *Message) UnmarshalBinary(data []byte) error {
 	if len(data) == 0 {
 		return errors.New("message data is empty")

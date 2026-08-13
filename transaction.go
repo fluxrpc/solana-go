@@ -20,6 +20,9 @@ type Transaction struct {
 }
 
 // TransactionFromBytes decodes a binary transaction.
+//
+// NOTE: instruction data aliases the input buffer to avoid copies; the
+// caller must not mutate or reuse data while the transaction is alive.
 func TransactionFromBytes(data []byte) (*Transaction, error) {
 	tx := new(Transaction)
 	if err := tx.UnmarshalBinary(data); err != nil {

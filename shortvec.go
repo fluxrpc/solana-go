@@ -7,8 +7,9 @@ import "errors"
 // 3 bytes and a maximum value of 0xFFFF.
 
 var (
-	errShortvecTruncated = errors.New("shortvec: truncated length")
-	errShortvecTooLarge  = errors.New("shortvec: length exceeds uint16 range")
+	errShortvecTruncated    = errors.New("shortvec: truncated length")
+	errShortvecTooLarge     = errors.New("shortvec: length exceeds uint16 range")
+	errShortvecNonCanonical = errors.New("shortvec: non-canonical length encoding")
 )
 
 // appendShortvecLen appends the shortvec encoding of n to dst.
@@ -38,6 +39,12 @@ func decodeShortvecLen(data []byte) (value int, bytesRead int, err error) {
 			return 0, 0, errShortvecTruncated
 		}
 		b := data[i]
+		// A zero continuation byte adds nothing, making the encoding
+		// non-minimal. The Solana runtime rejects such aliases, and
+		// accepting them would let one message have several encodings.
+		if i > 0 && b == 0 {
+			return 0, 0, errShortvecNonCanonical
+		}
 		value |= int(b&0x7F) << (7 * i)
 		if b&0x80 == 0 {
 			if value > 0xFFFF {
