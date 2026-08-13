@@ -23,6 +23,13 @@ A lean port of the core [solana-go](https://github.com/gagliardetto/solana-go) t
 | `PrivateKey` | `private_key.go` | 64-byte ed25519 keypair, `Sign` |
 | `Message` | `message.go` | legacy + v0 messages, binary & JSON |
 | `Transaction` | `transaction.go` | signatures + message, binary & JSON |
+| `EncodingType` / `Data` | `encoding.go` / `data.go` | RPC data encodings and the `["<content>","<encoding>"]` tuple |
+
+## RPC types
+
+The [`rpc`](rpc/) package ports every request/response type of the upstream `rpc` package — one file per method (`rpc/get_block.go`, `rpc/get_transaction.go`, …) plus the shared response types (`TransactionMeta`, `Account`, `DataBytesOrJSON`, the `Parsed*` family). Client call machinery, BSON and binary-codec baggage are cut; the types are plain JSON-tagged structs with custom codecs only where the wire format demands it (`DataBytesOrJSON`, `TransactionVersion`, envelopes, pubkey-keyed maps).
+
+They work with any JSON library; decode responses with `sonic.Unmarshal` to get the numbers below (upstream's client decodes with `goccy/go-json` — that's what it is benchmarked with).
 
 ## Install
 
