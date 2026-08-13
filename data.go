@@ -2,7 +2,9 @@ package solana_go
 
 import (
 	"encoding/base64"
+	"fmt"
 
+	"github.com/bytedance/sonic"
 	"github.com/fluxrpc/base58"
 )
 
@@ -63,4 +65,71 @@ func (t *Base64) UnmarshalJSON(data []byte) (err error) {
 
 func (t Base64) String() string {
 	return base64.StdEncoding.EncodeToString(t)
+}
+
+// Data is content plus the encoding it travels in, JSON-encoded as the RPC
+// tuple ["<encoded content>", "<encoding>"].
+// NOTE: base64+zstd data cannot be decoded by this SDK (kept out to avoid a
+// compression dependency); request base64 instead.
+type Data struct {
+	Content  []byte
+	Encoding EncodingType
+}
+
+func (t Data) MarshalJSON() ([]byte, error) {
+	// ["<content>","<encoding>"] built directly; both halves are escape-free.
+	content := t.String()
+	buf := make([]byte, 0, len(content)+len(t.Encoding)+8)
+	buf = append(buf, '[', '"')
+	buf = append(buf, content...)
+	buf = append(buf, `","`...)
+	buf = append(buf, t.Encoding...)
+	buf = append(buf, '"', ']')
+	return buf, nil
+}
+
+func (t *Data) UnmarshalJSON(data []byte) error {
+	var in []string
+	if err := sonic.Unmarshal(data, &in); err != nil {
+		return err
+	}
+	if len(in) != 2 {
+		return fmt.Errorf("invalid length for Data, expected 2, found %d", len(in))
+	}
+
+	t.Encoding = EncodingType(in[1])
+	if in[0] == "" {
+		t.Content = []byte{}
+		return nil
+	}
+
+	var err error
+	switch t.Encoding {
+	case EncodingBase58:
+		t.Content, err = base58.Decode(in[0])
+	case EncodingBase64:
+		t.Content, err = base64.StdEncoding.DecodeString(in[0])
+	case EncodingBase64Zstd:
+		err = fmt.Errorf("base64+zstd data is not supported by this SDK; request base64 instead")
+	default:
+		err = fmt.Errorf("unsupported encoding %s", in[1])
+	}
+	return err
+}
+
+// String returns the encoded form of the content per the Data's encoding.
+func (t Data) String() string {
+	switch t.Encoding {
+	case EncodingBase58:
+		return base58.Encode(t.Content)
+	case EncodingBase64:
+		return base64.StdEncoding.EncodeToString(t.Content)
+	default:
+		return ""
+	}
+}
+
+// GetBinary returns the raw decoded content bytes.
+func (t Data) GetBinary() []byte {
+	return t.Content
 }

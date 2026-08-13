@@ -105,6 +105,57 @@ func TestBase64String(t *testing.T) {
 	}
 }
 
+func TestDataJSONRoundTrip(t *testing.T) {
+	for _, encoding := range []EncodingType{EncodingBase58, EncodingBase64} {
+		want := Data{Content: testPayload(), Encoding: encoding}
+
+		data, err := json.Marshal(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if expected := `["` + want.String() + `","` + string(encoding) + `"]`; string(data) != expected {
+			t.Fatalf("MarshalJSON() = %s, want %s", data, expected)
+		}
+
+		var got Data
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.Encoding != want.Encoding || !bytes.Equal(got.Content, want.Content) {
+			t.Fatalf("round trip mismatch: got %+v, want %+v", got, want)
+		}
+	}
+}
+
+func TestDataUnmarshalJSONEmptyContent(t *testing.T) {
+	var got Data
+	if err := json.Unmarshal([]byte(`["","base64"]`), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Content) != 0 || got.Encoding != EncodingBase64 {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestDataUnmarshalJSONRejectsInvalidInput(t *testing.T) {
+	tests := []string{
+		`["AQID"]`,                  // wrong tuple length
+		`["AQID","base64","extra"]`, // wrong tuple length
+		`["AQID","base64+zstd"]`,    // unsupported by design
+		`["AQID","what"]`,           // unknown encoding
+		`["!!!","base64"]`,          // bad base64
+		`["0OIl","base58"]`,         // bad base58
+		`{"content":"x"}`,           // not a tuple
+	}
+
+	for _, input := range tests {
+		var got Data
+		if err := json.Unmarshal([]byte(input), &got); err == nil {
+			t.Errorf("json.Unmarshal(%s) unexpectedly succeeded", input)
+		}
+	}
+}
+
 var (
 	benchmarkPayload  = Base58(testPayload())
 	benchmarkDataJSON []byte
