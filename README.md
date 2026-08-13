@@ -66,219 +66,219 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| MarshalJSON | 538.5 | 8196 | 15.2x | 208 | 592 | 1 | 5 |
-| UnmarshalJSON | 357.9 | 7602 | 21.2x | 240 | 354 | 2 | 4 |
+| MarshalJSON | 561.6 | 8003 | 14.3x | 208 | 592 | 1 | 5 |
+| UnmarshalJSON | 296.6 | 7020 | 23.7x | 96 | 354 | 1 | 4 |
 
 ### Hash
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| String | 64.39 | 113.2 | 1.8x | 48 | 48 | 1 | 1 |
-| FromBase58 | 42.28 | 87.20 | 2.1x | 0 | 0 | 0 | 0 |
+| String | 71.12 | 131.8 | 1.9x | 48 | 48 | 1 | 1 |
+| FromBase58 | 43.62 | 84.83 | 1.9x | 0 | 0 | 0 | 0 |
 
 ### Message
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| MarshalBinary | 148.4 | 172.0 | 1.2x | 288 | 288 | 1 | 1 |
-| UnmarshalBinary | 228.8 | 373.1 | 1.6x | 320 | 368 | 4 | 5 |
-| MarshalJSON | 1074 | 2994 | 2.8x | 1472 | 1177 | 2 | 15 |
-| UnmarshalJSON | 2653 | 4665 | 1.8x | 1752 | 2311 | 22 | 50 |
+| MarshalBinary | 195.5 | 222.2 | 1.1x | 288 | 288 | 1 | 1 |
+| UnmarshalBinary | 315.8 | 486.7 | 1.5x | 320 | 368 | 4 | 5 |
+| MarshalJSON | 1061 | 3768 | 3.6x | 640 | 1177 | 1 | 15 |
+| UnmarshalJSON | 3120 | 5917 | 1.9x | 1408 | 2309 | 13 | 50 |
 
 ### PrivateKey
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Sign | 11589 | 21398 | 1.8x | 64 | 64 | 1 | 1 |
-| PublicKey | 2.49 | 10753 | 4311.5x | 0 | 0 | 0 | 0 |
+| Sign | 12832 | 23765 | 1.9x | 64 | 64 | 1 | 1 |
+| PublicKey | 2.80 | 11020 | 3932.9x | 0 | 0 | 0 | 0 |
 
 ### PublicKey
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| String | 72.22 | 120.3 | 1.7x | 48 | 48 | 1 | 1 |
-| FromBase58 | 41.04 | 76.16 | 1.9x | 0 | 0 | 0 | 0 |
-| MarshalJSON | 69.19 | 123.1 | 1.8x | 48 | 48 | 1 | 1 |
-| UnmarshalJSON | 101.2 | 207.4 | 2.0x | 48 | 64 | 1 | 2 |
+| String | 71.40 | 121.0 | 1.7x | 48 | 48 | 1 | 1 |
+| FromBase58 | 42.30 | 74.44 | 1.8x | 0 | 0 | 0 | 0 |
+| MarshalJSON | 80.61 | 115.7 | 1.4x | 48 | 48 | 1 | 1 |
+| UnmarshalJSON | 70.39 | 206.0 | 2.9x | 0 | 64 | 0 | 2 |
 
 ### Signature
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| String | 138.3 | 482.3 | 3.5x | 96 | 96 | 1 | 1 |
-| FromBase58 | 67.77 | 339.5 | 5.0x | 0 | 0 | 0 | 0 |
-| MarshalJSON | 136.2 | 456.4 | 3.4x | 96 | 96 | 1 | 1 |
-| UnmarshalJSON | 160.4 | 562.3 | 3.5x | 96 | 112 | 1 | 2 |
-| Verify | 32325 | 31416 | 1.0x | 0 | 0 | 0 | 0 |
+| String | 138.3 | 467.4 | 3.4x | 96 | 96 | 1 | 1 |
+| FromBase58 | 68.69 | 333.7 | 4.9x | 0 | 0 | 0 | 0 |
+| MarshalJSON | 143.2 | 483.0 | 3.4x | 96 | 96 | 1 | 1 |
+| UnmarshalJSON | 119.4 | 518.4 | 4.3x | 0 | 112 | 0 | 2 |
+| Verify | 31705 | 32995 | 1.0x | 0 | 0 | 0 | 0 |
 
 ### Transaction
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| MarshalBinary | 303.9 | 360.4 | 1.2x | 640 | 648 | 2 | 3 |
-| FromBytes | 372.7 | 785.2 | 2.1x | 528 | 632 | 6 | 9 |
-| MarshalJSON | 5594 | 7650 | 1.4x | 3011 | 2045 | 4 | 17 |
-| UnmarshalJSON | 8596 | 10087 | 1.2x | 2994 | 2759 | 30 | 59 |
+| MarshalBinary | 278.8 | 361.8 | 1.3x | 640 | 648 | 2 | 3 |
+| FromBytes | 358.7 | 592.2 | 1.7x | 528 | 632 | 6 | 9 |
+| MarshalJSON | 5298 | 7895 | 1.5x | 2177 | 2044 | 3 | 17 |
+| UnmarshalJSON | 8470 | 10241 | 1.2x | 2554 | 2758 | 20 | 59 |
 
 ### RpcTransactionMeta
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| UnmarshalJSON | 5200 | 7235 | 1.4x | 2217 | 2895 | 19 | 44 |
-| MarshalJSON | 2949 | 5741 | 1.9x | 2111 | 2143 | 16 | 21 |
+| UnmarshalJSON | 4322 | 7736 | 1.8x | 1635 | 2893 | 4 | 44 |
+| MarshalJSON | 3432 | 6224 | 1.8x | 2118 | 2143 | 15 | 21 |
 
 ### RpcAccount
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| UnmarshalJSON | 1141 | 1340 | 1.2x | 438 | 528 | 9 | 13 |
-| MarshalJSON | 701.1 | 1518 | 2.2x | 321 | 464 | 6 | 11 |
+| UnmarshalJSON | 1044 | 1399 | 1.3x | 277 | 528 | 4 | 13 |
+| MarshalJSON | 694.6 | 1577 | 2.3x | 307 | 464 | 5 | 11 |
 
 ### RpcGetBlockResult
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| UnmarshalJSON | 6802 | 9730 | 1.4x | 5242 | 5556 | 29 | 48 |
-| MarshalJSON | 4574 | 10739 | 2.3x | 5667 | 6746 | 21 | 40 |
+| UnmarshalJSON | 6303 | 10071 | 1.6x | 4801 | 5556 | 16 | 48 |
+| MarshalJSON | 4342 | 11517 | 2.7x | 4114 | 6754 | 15 | 40 |
 
 ### RpcGetTransactionResult
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| UnmarshalJSON | 2542 | 3667 | 1.4x | 2008 | 2445 | 12 | 20 |
+| UnmarshalJSON | 2253 | 4023 | 1.8x | 1365 | 2446 | 3 | 20 |
 
 ### RpcParsedTransaction
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| UnmarshalJSON | 4135 | 9056 | 2.2x | 2296 | 3328 | 22 | 49 |
+| UnmarshalJSON | 4112 | 9247 | 2.2x | 1889 | 3328 | 15 | 49 |
 
 ### ns/op comparison
 
 ```text
 Base58Data_MarshalJSON
-  flux  ███                                      538.5 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 8196 ns/op
+  flux  ███                                      561.6 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 8003 ns/op
 
 Base58Data_UnmarshalJSON
-  flux  ██                                       357.9 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 7602 ns/op
+  flux  ██                                       296.6 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 7020 ns/op
 
 Hash_String
-  flux  ███████████████████████                  64.39 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 113.2 ns/op
+  flux  ██████████████████████                   71.12 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 131.8 ns/op
 
 Hash_FromBase58
-  flux  ███████████████████                      42.28 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 87.20 ns/op
+  flux  █████████████████████                    43.62 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 84.83 ns/op
 
 Message_MarshalBinary
-  flux  ███████████████████████████████████      148.4 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 172.0 ns/op
+  flux  ███████████████████████████████████      195.5 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 222.2 ns/op
 
 Message_UnmarshalBinary
-  flux  █████████████████████████                228.8 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 373.1 ns/op
+  flux  ██████████████████████████               315.8 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 486.7 ns/op
 
 Message_MarshalJSON
-  flux  ██████████████                           1074 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 2994 ns/op
+  flux  ███████████                              1061 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 3768 ns/op
 
 Message_UnmarshalJSON
-  flux  ███████████████████████                  2653 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 4665 ns/op
+  flux  █████████████████████                    3120 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 5917 ns/op
 
 PrivateKey_Sign
-  flux  ██████████████████████                   11589 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 21398 ns/op
+  flux  ██████████████████████                   12832 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 23765 ns/op
 
 PrivateKey_PublicKey
-  flux  █                                        2.49 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 10753 ns/op
+  flux  █                                        2.80 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 11020 ns/op
 
 PublicKey_String
-  flux  ████████████████████████                 72.22 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 120.3 ns/op
+  flux  ████████████████████████                 71.40 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 121.0 ns/op
 
 PublicKey_FromBase58
-  flux  ██████████████████████                   41.04 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 76.16 ns/op
+  flux  ███████████████████████                  42.30 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 74.44 ns/op
 
 PublicKey_MarshalJSON
-  flux  ██████████████████████                   69.19 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 123.1 ns/op
+  flux  ████████████████████████████             80.61 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 115.7 ns/op
 
 PublicKey_UnmarshalJSON
-  flux  ████████████████████                     101.2 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 207.4 ns/op
+  flux  ██████████████                           70.39 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 206.0 ns/op
 
 Signature_String
-  flux  ███████████                              138.3 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 482.3 ns/op
+  flux  ████████████                             138.3 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 467.4 ns/op
 
 Signature_FromBase58
-  flux  ████████                                 67.77 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 339.5 ns/op
+  flux  ████████                                 68.69 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 333.7 ns/op
 
 Signature_MarshalJSON
-  flux  ████████████                             136.2 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 456.4 ns/op
+  flux  ████████████                             143.2 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 483.0 ns/op
 
 Signature_UnmarshalJSON
-  flux  ███████████                              160.4 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 562.3 ns/op
+  flux  █████████                                119.4 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 518.4 ns/op
 
 Signature_Verify
-  flux  ████████████████████████████████████████ 32325 ns/op
-  gagl  ███████████████████████████████████████  31416 ns/op  <-- faster
+  flux  ██████████████████████████████████████   31705 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 32995 ns/op
 
 Transaction_MarshalBinary
-  flux  ██████████████████████████████████       303.9 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 360.4 ns/op
+  flux  ███████████████████████████████          278.8 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 361.8 ns/op
 
 Transaction_FromBytes
-  flux  ███████████████████                      372.7 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 785.2 ns/op
+  flux  ████████████████████████                 358.7 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 592.2 ns/op
 
 Transaction_MarshalJSON
-  flux  █████████████████████████████            5594 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 7650 ns/op
+  flux  ███████████████████████████              5298 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 7895 ns/op
 
 Transaction_UnmarshalJSON
-  flux  ██████████████████████████████████       8596 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 10087 ns/op
+  flux  █████████████████████████████████        8470 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 10241 ns/op
 
 RpcTransactionMeta_UnmarshalJSON
-  flux  █████████████████████████████            5200 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 7235 ns/op
+  flux  ██████████████████████                   4322 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 7736 ns/op
 
 RpcTransactionMeta_MarshalJSON
-  flux  █████████████████████                    2949 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 5741 ns/op
+  flux  ██████████████████████                   3432 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 6224 ns/op
 
 RpcAccount_UnmarshalJSON
-  flux  ██████████████████████████████████       1141 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 1340 ns/op
+  flux  ██████████████████████████████           1044 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 1399 ns/op
 
 RpcAccount_MarshalJSON
-  flux  ██████████████████                       701.1 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 1518 ns/op
+  flux  ██████████████████                       694.6 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 1577 ns/op
 
 RpcGetBlockResult_UnmarshalJSON
-  flux  ████████████████████████████             6802 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 9730 ns/op
+  flux  █████████████████████████                6303 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 10071 ns/op
 
 RpcGetBlockResult_MarshalJSON
-  flux  █████████████████                        4574 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 10739 ns/op
+  flux  ███████████████                          4342 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 11517 ns/op
 
 RpcGetTransactionResult_UnmarshalJSON
-  flux  ████████████████████████████             2542 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 3667 ns/op
+  flux  ██████████████████████                   2253 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 4023 ns/op
 
 RpcParsedTransaction_UnmarshalJSON
-  flux  ██████████████████                       4135 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 9056 ns/op
+  flux  ██████████████████                       4112 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 9247 ns/op
 ```
 <!-- BENCHMARKS:END -->
 

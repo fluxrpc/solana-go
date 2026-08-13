@@ -172,7 +172,22 @@ func (mx *Message) IsSigner(account PublicKey) bool {
 // is a base58 string or a small integer, so the reflection-based encoder has
 // nothing to offer here. Legacy messages omit the addressTableLookups key.
 func (mx Message) MarshalJSON() ([]byte, error) {
-	buf := make([]byte, 0, 256+len(mx.AccountKeys)*(base58.EncodedMaxLen32+3))
+	// Upper-bound the output size so the buffer never reallocates: fixed
+	// skeleton plus per-element worst cases (44-char base58 keys, 3-digit
+	// indexes, and at most 2 base58 characters per instruction-data byte).
+	size := 192 + len(mx.AccountKeys)*(base58.EncodedMaxLen32+3)
+	for i := range mx.Instructions {
+		ins := &mx.Instructions[i]
+		size += 48 + 4*len(ins.Accounts) + 2*len(ins.Data)
+	}
+	if mx.version != MessageVersionLegacy {
+		size += 32
+		for i := range mx.AddressTableLookups {
+			lookup := &mx.AddressTableLookups[i]
+			size += 112 + 4*(len(lookup.WritableIndexes)+len(lookup.ReadonlyIndexes))
+		}
+	}
+	buf := make([]byte, 0, size)
 
 	buf = append(buf, `{"accountKeys":[`...)
 	for i := range mx.AccountKeys {

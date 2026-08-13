@@ -76,57 +76,82 @@ type Data struct {
 	Encoding EncodingType
 }
 
+// MarshalJSON writes ["<content>","<encoding>"] directly into one buffer,
+// appending the encoded content in place. It refuses encodings it cannot
+// render (only reachable by constructing a Data directly), rather than
+// silently dropping content or echoing unknown strings unescaped.
 func (t Data) MarshalJSON() ([]byte, error) {
-	// Refuse to silently drop content: String() can only render the
-	// encodings this SDK supports. The encoding is also echoed into the
-	// output verbatim, so unknown values (only reachable by constructing a
-	// Data directly) must not slip through unescaped.
 	switch t.Encoding {
-	case EncodingBase58, EncodingBase64:
+	case EncodingBase58:
+		buf := make([]byte, 0, len(t.Content)*2+len(t.Encoding)+8)
+		buf = append(buf, '[', '"')
+		buf = base58.AppendEncode(buf, t.Content)
+		buf = append(buf, `","`...)
+		buf = append(buf, t.Encoding...)
+		return append(buf, '"', ']'), nil
+	case EncodingBase64:
+		n := base64.StdEncoding.EncodedLen(len(t.Content))
+		buf := make([]byte, 0, n+len(t.Encoding)+8)
+		buf = append(buf, '[', '"')
+		off := len(buf)
+		buf = buf[:off+n]
+		base64.StdEncoding.Encode(buf[off:], t.Content)
+		buf = append(buf, `","`...)
+		buf = append(buf, t.Encoding...)
+		return append(buf, '"', ']'), nil
 	case EncodingBase64Zstd, "":
+		// Representable only with no content (the zero value, or empty
+		// account data).
 		if len(t.Content) > 0 {
 			return nil, fmt.Errorf("cannot marshal Data with unsupported encoding %q", t.Encoding)
 		}
+		buf := make([]byte, 0, len(t.Encoding)+8)
+		buf = append(buf, `["","`...)
+		buf = append(buf, t.Encoding...)
+		return append(buf, '"', ']'), nil
 	default:
 		return nil, fmt.Errorf("cannot marshal Data with unsupported encoding %q", t.Encoding)
 	}
-
-	// ["<content>","<encoding>"] built directly; both halves are escape-free.
-	content := t.String()
-	buf := make([]byte, 0, len(content)+len(t.Encoding)+8)
-	buf = append(buf, '[', '"')
-	buf = append(buf, content...)
-	buf = append(buf, `","`...)
-	buf = append(buf, t.Encoding...)
-	buf = append(buf, '"', ']')
-	return buf, nil
 }
 
 func (t *Data) UnmarshalJSON(data []byte) error {
-	var in []string
-	if err := sonic.Unmarshal(data, &in); err != nil {
-		return err
-	}
-	if len(in) != 2 {
-		return fmt.Errorf("invalid length for Data, expected 2, found %d", len(in))
+	// Fast path: parse the ["<content>","<encoding>"] tuple in place. Both
+	// halves are escape-free in well-formed RPC output; anything unexpected
+	// falls back to the general decoder.
+	content, encoding, ok := parseStringPair(data)
+	if !ok {
+		var in []string
+		if err := sonic.Unmarshal(data, &in); err != nil {
+			return err
+		}
+		if len(in) != 2 {
+			return fmt.Errorf("invalid length for Data, expected 2, found %d", len(in))
+		}
+		content, encoding = in[0], in[1]
 	}
 
-	// Validate the encoding even for empty content: it is echoed verbatim by
-	// MarshalJSON, so unknown values must never be stored. The empty
+	// Validate and intern the encoding: it is echoed verbatim by
+	// MarshalJSON, so unknown values must never be stored — and interning
+	// means the stored name never aliases the input buffer. The empty
 	// encoding is tolerated for empty content only, because that is how a
 	// zero Data value marshals.
-	t.Encoding = EncodingType(in[1])
-	switch t.Encoding {
-	case EncodingBase58, EncodingBase64, EncodingBase64Zstd:
+	switch encoding {
+	case string(EncodingBase58):
+		t.Encoding = EncodingBase58
+	case string(EncodingBase64):
+		t.Encoding = EncodingBase64
+	case string(EncodingBase64Zstd):
+		t.Encoding = EncodingBase64Zstd
 	case "":
-		if in[0] != "" {
-			return fmt.Errorf("unsupported encoding %s", in[1])
+		if content != "" {
+			return fmt.Errorf("unsupported encoding %q", encoding)
 		}
+		t.Encoding = ""
 	default:
-		return fmt.Errorf("unsupported encoding %s", in[1])
+		return fmt.Errorf("unsupported encoding %q", encoding)
 	}
 
-	if in[0] == "" {
+	if content == "" {
 		t.Content = []byte{}
 		return nil
 	}
@@ -134,13 +159,77 @@ func (t *Data) UnmarshalJSON(data []byte) error {
 	var err error
 	switch t.Encoding {
 	case EncodingBase58:
-		t.Content, err = base58.Decode(in[0])
+		t.Content, err = base58.Decode(content)
 	case EncodingBase64:
-		t.Content, err = base64.StdEncoding.DecodeString(in[0])
+		t.Content, err = base64.StdEncoding.DecodeString(content)
 	default: // EncodingBase64Zstd
 		err = fmt.Errorf("base64+zstd data is not supported by this SDK; request base64 instead")
 	}
 	return err
+}
+
+// parseStringPair parses a two-element JSON array of escape-free strings,
+// e.g. ["abc","base64"], returning views into data (not copies). It reports
+// ok=false for any other shape (escapes, extra elements, non-strings), in
+// which case the caller must re-parse with a general JSON decoder.
+func parseStringPair(data []byte) (first, second string, ok bool) {
+	i := skipJSONSpace(data, 0)
+	if i >= len(data) || data[i] != '[' {
+		return "", "", false
+	}
+	first, i, ok = parseSimpleJSONString(data, skipJSONSpace(data, i+1))
+	if !ok {
+		return "", "", false
+	}
+	i = skipJSONSpace(data, i)
+	if i >= len(data) || data[i] != ',' {
+		return "", "", false
+	}
+	second, i, ok = parseSimpleJSONString(data, skipJSONSpace(data, i+1))
+	if !ok {
+		return "", "", false
+	}
+	i = skipJSONSpace(data, i)
+	if i >= len(data) || data[i] != ']' {
+		return "", "", false
+	}
+	if skipJSONSpace(data, i+1) != len(data) {
+		return "", "", false
+	}
+	return first, second, true
+}
+
+// parseSimpleJSONString parses an escape-free JSON string starting at
+// data[i], returning its contents as a view into data and the index just
+// past the closing quote.
+func parseSimpleJSONString(data []byte, i int) (s string, next int, ok bool) {
+	if i >= len(data) || data[i] != '"' {
+		return "", 0, false
+	}
+	i++
+	start := i
+	for ; i < len(data); i++ {
+		c := data[i]
+		if c == '"' {
+			return unsafeString(data[start:i]), i + 1, true
+		}
+		if c == '\\' || c < 0x20 {
+			return "", 0, false
+		}
+	}
+	return "", 0, false
+}
+
+func skipJSONSpace(data []byte, i int) int {
+	for i < len(data) {
+		switch data[i] {
+		case ' ', '\t', '\n', '\r':
+			i++
+		default:
+			return i
+		}
+	}
+	return i
 }
 
 // String returns the encoded form of the content per the Data's encoding.
