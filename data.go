@@ -77,6 +77,20 @@ type Data struct {
 }
 
 func (t Data) MarshalJSON() ([]byte, error) {
+	// Refuse to silently drop content: String() can only render the
+	// encodings this SDK supports. The encoding is also echoed into the
+	// output verbatim, so unknown values (only reachable by constructing a
+	// Data directly) must not slip through unescaped.
+	switch t.Encoding {
+	case EncodingBase58, EncodingBase64:
+	case EncodingBase64Zstd, "":
+		if len(t.Content) > 0 {
+			return nil, fmt.Errorf("cannot marshal Data with unsupported encoding %q", t.Encoding)
+		}
+	default:
+		return nil, fmt.Errorf("cannot marshal Data with unsupported encoding %q", t.Encoding)
+	}
+
 	// ["<content>","<encoding>"] built directly; both halves are escape-free.
 	content := t.String()
 	buf := make([]byte, 0, len(content)+len(t.Encoding)+8)
@@ -97,7 +111,21 @@ func (t *Data) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid length for Data, expected 2, found %d", len(in))
 	}
 
+	// Validate the encoding even for empty content: it is echoed verbatim by
+	// MarshalJSON, so unknown values must never be stored. The empty
+	// encoding is tolerated for empty content only, because that is how a
+	// zero Data value marshals.
 	t.Encoding = EncodingType(in[1])
+	switch t.Encoding {
+	case EncodingBase58, EncodingBase64, EncodingBase64Zstd:
+	case "":
+		if in[0] != "" {
+			return fmt.Errorf("unsupported encoding %s", in[1])
+		}
+	default:
+		return fmt.Errorf("unsupported encoding %s", in[1])
+	}
+
 	if in[0] == "" {
 		t.Content = []byte{}
 		return nil
@@ -109,10 +137,8 @@ func (t *Data) UnmarshalJSON(data []byte) error {
 		t.Content, err = base58.Decode(in[0])
 	case EncodingBase64:
 		t.Content, err = base64.StdEncoding.DecodeString(in[0])
-	case EncodingBase64Zstd:
+	default: // EncodingBase64Zstd
 		err = fmt.Errorf("base64+zstd data is not supported by this SDK; request base64 instead")
-	default:
-		err = fmt.Errorf("unsupported encoding %s", in[1])
 	}
 	return err
 }

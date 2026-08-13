@@ -137,12 +137,41 @@ func TestDataUnmarshalJSONEmptyContent(t *testing.T) {
 	}
 }
 
+func TestDataMarshalJSONRejectsUnsupportedEncoding(t *testing.T) {
+	// Non-empty content with an encoding String() cannot render must error
+	// instead of silently emitting empty content.
+	for _, encoding := range []EncodingType{EncodingBase64Zstd, EncodingJSONParsed, ""} {
+		if _, err := json.Marshal(Data{Content: []byte{1}, Encoding: encoding}); err == nil {
+			t.Errorf("Marshal with encoding %q unexpectedly succeeded", encoding)
+		}
+	}
+
+	// Empty content is representable under the known encodings, and the
+	// zero value round-trips as ["",""].
+	if _, err := json.Marshal(Data{Encoding: EncodingBase64Zstd}); err != nil {
+		t.Fatal(err)
+	}
+	zero, err := json.Marshal(Data{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(zero) != `["",""]` {
+		t.Fatalf("zero value marshals as %s", zero)
+	}
+	var back Data
+	if err := json.Unmarshal(zero, &back); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDataUnmarshalJSONRejectsInvalidInput(t *testing.T) {
 	tests := []string{
 		`["AQID"]`,                  // wrong tuple length
 		`["AQID","base64","extra"]`, // wrong tuple length
 		`["AQID","base64+zstd"]`,    // unsupported by design
 		`["AQID","what"]`,           // unknown encoding
+		`["","what"]`,               // unknown encoding, even with empty content
+		`["","evil\"],[\"x"]`,       // encoding must never be stored unvalidated
 		`["!!!","base64"]`,          // bad base64
 		`["0OIl","base58"]`,         // bad base58
 		`{"content":"x"}`,           // not a tuple
