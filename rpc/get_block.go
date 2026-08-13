@@ -66,12 +66,12 @@ func (opts *GetBlockOpts) Validate() error {
 	}
 	if !solana.IsAnyOfEncodingType(
 		opts.Encoding,
-		// Valid encodings:
+		// Valid encodings. base64+zstd is deliberately absent: the RPC
+		// accepts it, but this SDK cannot decode the response.
 		solana.EncodingJSON,
 		solana.EncodingJSONParsed,
 		solana.EncodingBase58,
 		solana.EncodingBase64,
-		solana.EncodingBase64Zstd,
 	) {
 		return fmt.Errorf("provided encoding is not supported: %s", opts.Encoding)
 	}
