@@ -44,6 +44,9 @@ type TransactionMeta struct {
 	ReturnData ReturnData `json:"returnData"`
 
 	ComputeUnitsConsumed *uint64 `json:"computeUnitsConsumed"`
+
+	// Transaction cost units, as reported by newer validators.
+	CostUnits *uint64 `json:"costUnits,omitempty"`
 }
 
 // DeprecatedTransactionMetaStatus is the deprecated transaction status:

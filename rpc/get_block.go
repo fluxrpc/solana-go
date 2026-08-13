@@ -152,8 +152,8 @@ type GetParsedBlockResult struct {
 // ParsedTransactionWithMeta is a jsonParsed-encoded transaction plus its
 // status metadata.
 type ParsedTransactionWithMeta struct {
-	Slot        uint64
-	BlockTime   *solana.UnixTimeSeconds
-	Transaction *ParsedTransaction
-	Meta        *ParsedTransactionMeta
+	Slot        uint64                  `json:"slot,omitempty"`
+	BlockTime   *solana.UnixTimeSeconds `json:"blockTime,omitempty"`
+	Transaction *ParsedTransaction      `json:"transaction"`
+	Meta        *ParsedTransactionMeta  `json:"meta"`
 }

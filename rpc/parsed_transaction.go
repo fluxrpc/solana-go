@@ -56,6 +56,9 @@ type ParsedTransactionMeta struct {
 	ReturnData ReturnData `json:"returnData"`
 
 	ComputeUnitsConsumed *uint64 `json:"computeUnitsConsumed"`
+
+	// Transaction cost units, as reported by newer validators.
+	CostUnits *uint64 `json:"costUnits,omitempty"`
 }
 
 // ParsedInnerInstruction groups the parsed cross-program instructions
@@ -70,6 +73,11 @@ type ParsedMessageAccount struct {
 	PublicKey solana.PublicKey `json:"pubkey"`
 	Signer    bool             `json:"signer"`
 	Writable  bool             `json:"writable"`
+
+	// The source of the account key: "transaction" for keys from the message
+	// itself, "lookupTable" for keys resolved from address lookup tables.
+	// Nil for legacy transactions.
+	Source *AccountKeySource `json:"source,omitempty"`
 }
 
 // ParsedMessage is the message of a jsonParsed-encoded transaction.

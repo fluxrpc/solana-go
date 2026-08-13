@@ -28,6 +28,9 @@ type GetClusterNodesResult struct {
 	// TPU vote network address for the node.
 	TPUVote *string `json:"tpuVote,omitempty"`
 
+	// TVU network address for the node.
+	TVU *string `json:"tvu,omitempty"`
+
 	// Serve repair network address for the node.
 	ServeRepair *string `json:"serveRepair,omitempty"`
 

@@ -18,9 +18,9 @@ type GetParsedTransactionOpts struct {
 // GetParsedTransactionResult is the result of getTransaction with the
 // jsonParsed encoding.
 type GetParsedTransactionResult struct {
-	Slot        uint64
-	BlockTime   *solana.UnixTimeSeconds
-	Transaction *ParsedTransaction
-	Meta        *ParsedTransactionMeta
-	Version     TransactionVersion `json:"version"`
+	Slot        uint64                  `json:"slot,omitempty"`
+	BlockTime   *solana.UnixTimeSeconds `json:"blockTime,omitempty"`
+	Transaction *ParsedTransaction      `json:"transaction"`
+	Meta        *ParsedTransactionMeta  `json:"meta"`
+	Version     TransactionVersion      `json:"version"`
 }
