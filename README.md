@@ -134,6 +134,12 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 | UnmarshalJSON | 6802 | 9730 | 1.4x | 5242 | 5556 | 29 | 48 |
 | MarshalJSON | 4574 | 10739 | 2.3x | 5667 | 6746 | 21 | 40 |
 
+### RpcGetTransactionResult
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| UnmarshalJSON | 2542 | 3667 | 1.4x | 2008 | 2445 | 12 | 20 |
+
 ### RpcParsedTransaction
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
@@ -258,6 +264,10 @@ RpcGetBlockResult_UnmarshalJSON
 RpcGetBlockResult_MarshalJSON
   flux  █████████████████                        4574 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 10739 ns/op
+
+RpcGetTransactionResult_UnmarshalJSON
+  flux  ████████████████████████████             2542 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 3667 ns/op
 
 RpcParsedTransaction_UnmarshalJSON
   flux  ██████████████████                       4135 ns/op  <-- faster
