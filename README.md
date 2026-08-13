@@ -120,6 +120,13 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 | UnmarshalJSON | 5200 | 7235 | 1.4x | 2217 | 2895 | 19 | 44 |
 | MarshalJSON | 2949 | 5741 | 1.9x | 2111 | 2143 | 16 | 21 |
 
+### RpcAccount
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| UnmarshalJSON | 1141 | 1340 | 1.2x | 438 | 528 | 9 | 13 |
+| MarshalJSON | 701.1 | 1518 | 2.2x | 321 | 464 | 6 | 11 |
+
 ### ns/op comparison
 
 ```text
@@ -222,6 +229,14 @@ RpcTransactionMeta_UnmarshalJSON
 RpcTransactionMeta_MarshalJSON
   flux  █████████████████████                    2949 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 5741 ns/op
+
+RpcAccount_UnmarshalJSON
+  flux  ██████████████████████████████████       1141 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 1340 ns/op
+
+RpcAccount_MarshalJSON
+  flux  ██████████████████                       701.1 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 1518 ns/op
 ```
 <!-- BENCHMARKS:END -->
 
