@@ -534,6 +534,48 @@ func TestLiveRPC(t *testing.T) {
 		}
 	})
 
+	t.Run("getProgramAccounts_stream", func(t *testing.T) {
+		offset, length := uint64(0), uint64(32)
+		body, err := json.Marshal(map[string]any{
+			"jsonrpc": "2.0",
+			"id":      1,
+			"method":  "getProgramAccounts",
+			"params": []any{sysvarOwner, M{
+				"encoding":    solana.EncodingBase64,
+				"dataSlice":   DataSlice{Offset: &offset, Length: &length},
+				"withContext": true,
+			}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := lc.c.Post(lc.url, "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		var streamed []*KeyedAccount
+		ctx, err := StreamProgramAccounts(resp.Body, func(ka *KeyedAccount) error {
+			streamed = append(streamed, ka)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ctx == nil || ctx.Slot == 0 {
+			t.Fatalf("context = %+v", ctx)
+		}
+		if len(streamed) == 0 {
+			t.Fatal("no streamed accounts")
+		}
+		for _, ka := range streamed {
+			if ka.Pubkey.IsZero() || ka.Account == nil {
+				t.Fatalf("bad streamed account %+v", ka)
+			}
+		}
+	})
+
 	t.Run("getRecentPerformanceSamples", func(t *testing.T) {
 		res := decodeStrict[[]GetRecentPerformanceSamplesResult](t, lc.call(t, "getRecentPerformanceSamples", 5))
 		if len(res) == 0 {

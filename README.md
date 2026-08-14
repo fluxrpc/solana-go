@@ -31,6 +31,8 @@ The [`rpc`](rpc/) package ports every request/response type of the upstream `rpc
 
 They work with any JSON library; decode responses with `sonic.Unmarshal` to get the numbers below (upstream's client decodes with `goccy/go-json` — that's what it is benchmarked with).
 
+For `getProgramAccounts`, `rpc.StreamProgramAccounts(body, fn)` decodes accounts incrementally off the response body as it downloads — memory stays bounded by the largest account instead of the whole response, and decoding overlaps the transfer (built for constant-stream delivery such as fluxrpc's). Live-endpoint conformance tests for every method run with `RPC_URL=... go test ./rpc/ -run TestLiveRPC`.
+
 ## Install
 
 ```bash
