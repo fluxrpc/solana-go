@@ -7,12 +7,14 @@ require (
 	github.com/fluxrpc/solana-go v0.0.0
 	github.com/gagliardetto/binary v0.8.0
 	github.com/gagliardetto/solana-go v1.22.0
+	github.com/gobwas/ws v1.4.0
 	github.com/goccy/go-json v0.10.6
 )
 
 require (
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
@@ -20,7 +22,11 @@ require (
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fluxrpc/base58 v1.0.0 // indirect
 	github.com/gagliardetto/treeout v0.1.4 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/rpc v1.2.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
