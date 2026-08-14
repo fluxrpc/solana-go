@@ -31,7 +31,16 @@ The [`rpc`](rpc/) package ports every request/response type of the upstream `rpc
 
 They work with any JSON library; decode responses with `sonic.Unmarshal` to get the numbers below (upstream's client decodes with `goccy/go-json` — that's what it is benchmarked with).
 
-For `getProgramAccounts`, `rpc.StreamProgramAccounts(body, fn)` decodes accounts incrementally off the response body as it downloads — memory stays bounded by the largest account instead of the whole response, and decoding overlaps the transfer (built for constant-stream delivery such as fluxrpc's). Live-endpoint conformance tests for every method run with `RPC_URL=... go test ./rpc/ -run TestLiveRPC`.
+For `getProgramAccounts`, `rpc.StreamProgramAccounts(body, fn)` decodes accounts incrementally off the response body as it downloads — memory stays bounded by the largest account instead of the whole response, and decoding overlaps the transfer (built for constant-stream delivery such as fluxrpc's). With a paced-delivery benchmark (2000 accounts arriving as 32KB chunks every 250µs, `BenchmarkStreamProgramAccountsNetwork` vs `BenchmarkBufferedProgramAccountsNetwork`):
+
+| | streamed | buffered (read all, then decode) | |
+|---|---:|---:|---|
+| total wall clock | 4.0 ms | 6.2 ms | 1.5x faster |
+| time to first account | 0.09 ms | 6.2 ms | ~68x faster |
+| memory per response | 686 KB | 2.1 MB | 3.0x less |
+| allocations | 4.3 k | 14.1 k | 3.3x fewer |
+
+Live-endpoint conformance tests for every method run with `RPC_URL=... go test ./rpc/ -run TestLiveRPC`.
 
 ## Install
 
