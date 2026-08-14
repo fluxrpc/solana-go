@@ -8,7 +8,7 @@ A lean port of the core [solana-go](https://github.com/gagliardetto/solana-go) t
 - Zero-allocation-conscious JSON marshaling (direct quoted-buffer writes, no `json.Marshal` round trips for base58/base64 strings).
 - Single-allocation binary (wire format) encoding with exact size precomputation.
 - Only supported serializations: `String`, `Bytes` (binary wire format) and JSON. No BSON, no text marshalers, no kitchen sink.
-- Four dependencies, each earning its keep: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify), `klauspost/compress` (base64+zstd account data).
+- Five dependencies, each earning its keep: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify), `klauspost/compress` (base64+zstd account data), `gobwas/ws` (raw WebSocket frames). The gRPC stack lives only in the nested `yellowstone` module.
 
 ## Types
 
@@ -41,6 +41,32 @@ For `getProgramAccounts`, `rpc.StreamProgramAccounts(body, fn)` decodes accounts
 | allocations | 4.3 k | 14.1 k | 3.3x fewer |
 
 Live-endpoint conformance tests for every method run with `RPC_URL=... go test ./rpc/ -run TestLiveRPC`.
+
+## WebSocket subscriptions
+
+The [`ws`](ws/) package covers all nine pubsub subscriptions (`accountSubscribe`, `programSubscribe`, `logsSubscribe`, `signatureSubscribe`, `slotSubscribe`, `slotsUpdatesSubscribe`, `rootSubscribe`, `voteSubscribe`, `blockSubscribe`) over [gobwas/ws](https://github.com/gobwas/ws) raw frames. One read loop reuses a single message buffer and routes exact-size payload copies to buffered per-subscription channels; typed decoding happens on the consumer's goroutine via generic `Subscription[T]`, so a slow consumer drops (and counts) its own notifications instead of stalling the socket. Subscription channels are registered inside the read loop's ack handling, so notifications arriving immediately behind the subscribe ack are never lost.
+
+Notification pipeline throughput (20k account notifications flooded over a local socket, `BenchmarkWs_AccountNotifications`):
+
+| per notification | fluxrpc `ws` | upstream `rpc/ws` (gorilla) | |
+|---|---:|---:|---|
+| latency | 4.97 µs | 7.23 µs | 1.45x faster |
+| memory | 1.66 KB | 2.20 KB | 1.3x less |
+| allocations | 15.2 | 30.0 | 2.0x fewer |
+
+Live test: `WS_URL=wss://... go test ./ws/ -run TestLive`.
+
+## Yellowstone (gRPC Geyser)
+
+The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go get github.com/fluxrpc/solana-go/yellowstone`), so its gRPC/protobuf dependency tree never touches the core SDK. It wraps the Geyser protocol: `Connect` with `x-token` auth, TLS auto-detection, tuned keepalive and a 1GB receive limit; `Subscribe` with live filter updates and thin filter builders; unary `Ping`/`GetVersion`/`GetSlot`/`GetLatestBlockhash`/`GetBlockHeight`/`IsBlockhashValid`; and allocation-light converters from geyser protobuf into this SDK's types — converted transactions re-serialize byte-identical and pass signature verification.
+
+| benchmark (bufconn, i7-9700K) | result |
+|---|---:|
+| subscribe throughput (incl. account conversion) | ~600k updates/sec |
+| `ConvertTransaction` | 375 ns/op, 7 allocs |
+| `ConvertAccount` | 55 ns/op, 1 alloc |
+
+Live test: `YELLOWSTONE_ENDPOINT=... [YELLOWSTONE_TOKEN=...] go test ./yellowstone/ -run TestLive`.
 
 ## Install
 
