@@ -164,6 +164,15 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 |---|---:|---:|---:|---:|---:|---:|---:|
 | UnmarshalJSON | 4112 | 9247 | 2.2x | 1889 | 3328 | 15 | 49 |
 
+### Pda
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| FindProgramAddress | 3361 | 3746 | 1.1x | 0 | 625 | 0 | 6 |
+| CreateProgramAddress | 3396 | 3510 | 1.0x | 0 | 168 | 0 | 4 |
+| FindAssociatedTokenAddress | 3649 | 5396 | 1.5x | 0 | 721 | 0 | 9 |
+| IsOnCurve | 3899 | 3724 | 1.0x | 0 | 0 | 0 | 0 |
+
 ### ns/op comparison
 
 ```text
@@ -290,6 +299,22 @@ RpcGetTransactionResult_UnmarshalJSON
 RpcParsedTransaction_UnmarshalJSON
   flux  ██████████████████                       4112 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 9247 ns/op
+
+Pda_FindProgramAddress
+  flux  ████████████████████████████████████     3361 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 3746 ns/op
+
+Pda_CreateProgramAddress
+  flux  ███████████████████████████████████████  3396 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 3510 ns/op
+
+Pda_FindAssociatedTokenAddress
+  flux  ███████████████████████████              3649 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 5396 ns/op
+
+Pda_IsOnCurve
+  flux  ████████████████████████████████████████ 3899 ns/op
+  gagl  ██████████████████████████████████████   3724 ns/op  <-- faster
 ```
 <!-- BENCHMARKS:END -->
 
