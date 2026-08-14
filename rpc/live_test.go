@@ -14,7 +14,9 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -805,6 +807,51 @@ func TestLiveRPC(t *testing.T) {
 			t.Log("simulation unexpectedly succeeded (funded random key?)")
 		}
 	})
+}
+
+// TestLiveClient smoke-tests the HTTP client against the live endpoint.
+func TestLiveClient(t *testing.T) {
+	url := os.Getenv("RPC_URL")
+	if url == "" {
+		t.Skip("RPC_URL not set; skipping live RPC tests")
+	}
+	client := New(url)
+	ctx := context.Background()
+
+	slot, err := client.GetSlot(ctx, CommitmentFinalized)
+	if err != nil || slot == 0 {
+		t.Fatalf("GetSlot: %d, %v", slot, err)
+	}
+	if _, err := client.GetVersion(ctx); err != nil {
+		t.Fatalf("GetVersion: %v", err)
+	}
+	info, err := client.GetAccountInfo(ctx, solana.MustPublicKeyFromBase58(usdcMint))
+	if err != nil || len(info.GetBinary()) != 82 {
+		t.Fatalf("GetAccountInfo: %v (%d bytes)", err, len(info.GetBinary()))
+	}
+	if _, err := client.GetAccountInfo(ctx, solana.PublicKey{0xde, 0xad}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("GetAccountInfo(nonexistent) = %v, want ErrNotFound", err)
+	}
+	hash, err := client.GetLatestBlockhash(ctx, CommitmentFinalized)
+	if err != nil || hash.Value == nil || hash.Value.Blockhash.IsZero() {
+		t.Fatalf("GetLatestBlockhash: %+v, %v", hash, err)
+	}
+	blocks, err := client.GetBlocks(ctx, slot-20, &slot, CommitmentFinalized)
+	if err != nil || len(blocks) == 0 {
+		t.Fatalf("GetBlocks: %v", err)
+	}
+	block, err := client.GetBlock(ctx, blocks[len(blocks)-1])
+	if err != nil || len(block.Transactions) == 0 {
+		t.Fatalf("GetBlock: %v", err)
+	}
+	count := 0
+	streamCtx, err := client.GetProgramAccountsStream(ctx, solana.SysVarPubkey, nil, func(*KeyedAccount) error {
+		count++
+		return nil
+	})
+	if err != nil || streamCtx == nil || count == 0 {
+		t.Fatalf("GetProgramAccountsStream: ctx %+v, %d accounts, %v", streamCtx, count, err)
+	}
 }
 
 func mustRandomKey(t *testing.T) solana.PrivateKey {

@@ -18,21 +18,21 @@ type GetAccountInfoOpts struct {
 	//   detectable when the data field is type <string>.
 	//
 	// This parameter is optional.
-	Encoding solana.EncodingType
+	Encoding solana.EncodingType `json:"encoding,omitempty"`
 
 	// Commitment requirement.
 	//
 	// This parameter is optional.
-	Commitment CommitmentType
+	Commitment CommitmentType `json:"commitment,omitempty"`
 
 	// dataSlice parameters for limiting returned account data:
 	// Limits the returned account data using the provided offset and length fields;
 	// only available for "base58", "base64" or "base64+zstd" encodings.
 	//
 	// This parameter is optional.
-	DataSlice *DataSlice
+	DataSlice *DataSlice `json:"dataSlice,omitempty"`
 
 	// The minimum slot that the request can be evaluated at.
 	// This parameter is optional.
-	MinContextSlot *uint64
+	MinContextSlot *uint64 `json:"minContextSlot,omitempty"`
 }

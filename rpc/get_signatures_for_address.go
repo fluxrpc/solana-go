@@ -23,5 +23,5 @@ type GetSignaturesForAddressOpts struct {
 
 	// The minimum slot that the request can be evaluated at.
 	// This parameter is optional.
-	MinContextSlot *uint64
+	MinContextSlot *uint64 `json:"minContextSlot,omitempty"`
 }

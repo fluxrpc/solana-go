@@ -6,13 +6,13 @@ package rpc
 // See https://solana.com/docs/rpc/http/gettokenaccountbalance.
 type GetTokenAccountBalanceOpts struct {
 	// Commitment level to query the balance at.
-	Commitment CommitmentType
+	Commitment CommitmentType `json:"commitment,omitempty"`
 
 	// MinContextSlot is the minimum slot at which the RPC node should
 	// have processed the request. The validator returns a
 	// `MinContextSlotNotReached` error to the caller if the local slot
 	// has not yet caught up, instead of silently serving stale state.
-	MinContextSlot *uint64
+	MinContextSlot *uint64 `json:"minContextSlot,omitempty"`
 }
 
 // GetTokenAccountBalanceResult is the result of the getTokenAccountBalance

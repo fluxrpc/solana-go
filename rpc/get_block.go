@@ -28,29 +28,29 @@ type GetBlockOpts struct {
 	//   to regular JSON encoding (accounts, data, and programIdIndex fields).
 	//
 	// This parameter is optional.
-	Encoding solana.EncodingType
+	Encoding solana.EncodingType `json:"encoding,omitempty"`
 
 	// Level of transaction detail to return.
 	// If parameter not provided, the default detail level is "full".
 	//
 	// This parameter is optional.
-	TransactionDetails TransactionDetailsType
+	TransactionDetails TransactionDetailsType `json:"transactionDetails,omitempty"`
 
 	// Whether to populate the rewards array.
 	// If parameter not provided, the default includes rewards.
 	//
 	// This parameter is optional.
-	Rewards *bool
+	Rewards *bool `json:"rewards,omitempty"`
 
 	// "processed" is not supported.
 	// If parameter not provided, the default is "finalized".
 	//
 	// This parameter is optional.
-	Commitment CommitmentType
+	Commitment CommitmentType `json:"commitment,omitempty"`
 
 	// Max transaction version to return in responses.
 	// If the requested block contains a transaction with a higher version, an error will be returned.
-	MaxSupportedTransactionVersion *uint64
+	MaxSupportedTransactionVersion *uint64 `json:"maxSupportedTransactionVersion,omitempty"`
 }
 
 var (

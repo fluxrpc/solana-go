@@ -70,25 +70,25 @@ type ReplacementBlockhash struct {
 type SimulateTransactionOpts struct {
 	// If true the transaction signatures will be verified
 	// (default: false, conflicts with ReplaceRecentBlockhash)
-	SigVerify bool
+	SigVerify bool `json:"sigVerify,omitempty"`
 
 	// Commitment level to simulate the transaction at.
 	// (default: "finalized").
-	Commitment CommitmentType
+	Commitment CommitmentType `json:"commitment,omitempty"`
 
 	// If true the transaction recent blockhash will be replaced with the most recent blockhash.
 	// (default: false, conflicts with SigVerify)
-	ReplaceRecentBlockhash bool
+	ReplaceRecentBlockhash bool `json:"replaceRecentBlockhash,omitempty"`
 
 	// If true the response will include inner instructions.
 	// These inner instructions will be jsonParsed where possible,
 	// otherwise json. (default: false)
-	InnerInstructions bool
+	InnerInstructions bool `json:"innerInstructions,omitempty"`
 
 	// The minimum slot that the request can be evaluated at.
-	MinContextSlot *uint64
+	MinContextSlot *uint64 `json:"minContextSlot,omitempty"`
 
-	Accounts *SimulateTransactionAccountsOpts
+	Accounts *SimulateTransactionAccountsOpts `json:"accounts,omitempty"`
 }
 
 // SimulateTransactionAccountsOpts selects which accounts (and in which
@@ -101,8 +101,8 @@ type SimulateTransactionAccountsOpts struct {
 	//   If "jsonParsed" is requested but a parser cannot be found,
 	//   the field falls back to binary encoding, detectable when
 	//   the data field is type <string>.
-	Encoding solana.EncodingType
+	Encoding solana.EncodingType `json:"encoding,omitempty"`
 
 	// An array of accounts to return.
-	Addresses []solana.PublicKey
+	Addresses []solana.PublicKey `json:"addresses,omitempty"`
 }

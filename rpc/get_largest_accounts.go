@@ -16,9 +16,9 @@ const (
 // GetLargestAccountsOpts is the optional configuration object for the
 // getLargestAccounts RPC method.
 type GetLargestAccountsOpts struct {
-	Commitment  CommitmentType
-	Filter      LargestAccountsFilterType
-	SortResults *bool
+	Commitment  CommitmentType            `json:"commitment,omitempty"`
+	Filter      LargestAccountsFilterType `json:"filter,omitempty"`
+	SortResults *bool                     `json:"sortResults,omitempty"`
 }
 
 // GetLargestAccountsResult is the response of the getLargestAccounts RPC

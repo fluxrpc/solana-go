@@ -12,7 +12,7 @@ type GetParsedTransactionOpts struct {
 
 	// Max transaction version to return in responses.
 	// If the requested block contains a transaction with a higher version, an error will be returned.
-	MaxSupportedTransactionVersion *uint64
+	MaxSupportedTransactionVersion *uint64 `json:"maxSupportedTransactionVersion,omitempty"`
 }
 
 // GetParsedTransactionResult is the result of getTransaction with the

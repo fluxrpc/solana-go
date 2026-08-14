@@ -3,10 +3,10 @@ package rpc
 // GetFeeForMessageOpts groups the optional configuration accepted by the
 // getFeeForMessage RPC.
 type GetFeeForMessageOpts struct {
-	Commitment CommitmentType
+	Commitment CommitmentType `json:"commitment,omitempty"`
 
 	// The minimum slot that the request can be evaluated at.
-	MinContextSlot *uint64
+	MinContextSlot *uint64 `json:"minContextSlot,omitempty"`
 }
 
 // GetFeeForMessageResult is the response of the getFeeForMessage RPC method.

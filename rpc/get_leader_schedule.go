@@ -11,14 +11,14 @@ import (
 // GetLeaderScheduleOpts is the optional configuration object for the
 // getLeaderSchedule RPC method.
 type GetLeaderScheduleOpts struct {
-	Commitment CommitmentType
+	Commitment CommitmentType `json:"commitment,omitempty"`
 
 	// Fetch the leader schedule for the epoch that corresponds
 	// to the provided slot.
 	// If unspecified, the leader schedule for the current epoch is fetched
-	Epoch *uint64
+	Epoch *uint64 `json:"epoch,omitempty"`
 
-	Identity *solana.PublicKey // Only return results for this validator identity
+	Identity *solana.PublicKey `json:"identity,omitempty"` // Only return results for this validator identity
 }
 
 // GetLeaderScheduleResult is the response of the getLeaderSchedule RPC

@@ -3,14 +3,14 @@ package rpc
 // GetInflationRewardOpts is the optional configuration object for the
 // getInflationReward RPC method.
 type GetInflationRewardOpts struct {
-	Commitment CommitmentType
+	Commitment CommitmentType `json:"commitment,omitempty"`
 
 	// An epoch for which the reward occurs.
 	// If omitted, the previous epoch will be used.
-	Epoch *uint64
+	Epoch *uint64 `json:"epoch,omitempty"`
 
 	// The minimum slot that the request can be evaluated at.
-	MinContextSlot *uint64
+	MinContextSlot *uint64 `json:"minContextSlot,omitempty"`
 }
 
 // GetInflationRewardResult is one entry of the getInflationReward RPC
