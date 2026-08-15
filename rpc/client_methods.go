@@ -24,8 +24,12 @@ func withCommitment(params []any, commitment CommitmentType) []any {
 
 // GetAccountInfo returns all information associated with the account,
 // requesting base64 encoding. Returns ErrNotFound if the account does not
-// exist.
+// exist. With the cache enabled (see EnableCache) the account is served
+// locally whenever it is streamed, immutable or fresh.
 func (c *Client) GetAccountInfo(ctx context.Context, account solana.PublicKey) (*GetAccountInfoResult, error) {
+	if cache := c.cache.Load(); cache != nil {
+		return c.cachedGetAccountInfo(ctx, account, cache)
+	}
 	return c.GetAccountInfoWithOpts(ctx, account, &GetAccountInfoOpts{Encoding: solana.EncodingBase64})
 }
 
@@ -55,8 +59,13 @@ func (c *Client) GetBalance(ctx context.Context, account solana.PublicKey, commi
 
 // GetMultipleAccounts returns the information of multiple accounts via
 // getMultipleAccounts, requesting base64 encoding. Accounts that do not
-// exist come back as nil entries in the result.
+// exist come back as nil entries in the result. With the cache enabled
+// (see EnableCache) as many accounts as possible are served locally and
+// only the deduplicated misses are fetched, in a single call.
 func (c *Client) GetMultipleAccounts(ctx context.Context, accounts ...solana.PublicKey) (*GetMultipleAccountsResult, error) {
+	if cache := c.cache.Load(); cache != nil {
+		return c.cachedGetMultipleAccounts(ctx, accounts, cache)
+	}
 	return c.GetMultipleAccountsWithOpts(ctx, accounts, &GetMultipleAccountsOpts{Encoding: solana.EncodingBase64})
 }
 

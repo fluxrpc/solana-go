@@ -22,7 +22,7 @@ type fakeSink struct {
 	updates []sinkUpdate
 }
 
-func (f *fakeSink) StoreStreamed(account solana.PublicKey, data *rpc.Account, slot uint64) {
+func (f *fakeSink) CacheStoreStreamed(account solana.PublicKey, data *rpc.Account, slot uint64) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.updates = append(f.updates, sinkUpdate{key: account, data: data, slot: slot})

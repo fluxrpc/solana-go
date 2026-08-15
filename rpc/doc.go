@@ -18,6 +18,20 @@
 // maxSupportedTransactionVersion=0 so versioned transactions decode out of
 // the box. Use [Client.SetHeader] for authenticated endpoints.
 //
+// # Account cache
+//
+// [Client.EnableCache] puts an in-memory sharded account cache in front of
+// GetAccountInfo and GetMultipleAccounts (the WithOpts variants always
+// bypass it). An entry is served when it is streamed (kept current by a
+// realtime feed such as the yellowstone package's PipeAccounts),
+// immutable ([Client.GetAccountInfoImmutable]), or fetched within the
+// freshness window. Writes are slot-ordered, so a late RPC response can
+// never overwrite a newer streamed update. Cache hits return the same
+// *Account to every caller: treat cached accounts as read-only.
+//
+//	client.EnableCache(nil)
+//	go yellowstone.PipeAccounts(stream, client) // reads for streamed accounts never hit the network
+//
 // # Streaming getProgramAccounts
 //
 // getProgramAccounts responses can be arbitrarily large.

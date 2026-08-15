@@ -27,6 +27,10 @@ type Client struct {
 	http    *http.Client
 	headers http.Header
 	id      atomic.Uint64
+
+	// cache is the optional account cache; nil when disabled. See
+	// EnableCache.
+	cache atomic.Pointer[accountCache]
 }
 
 // New creates a client for the given endpoint with a transport tuned for

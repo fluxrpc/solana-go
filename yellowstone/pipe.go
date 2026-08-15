@@ -10,9 +10,10 @@ import (
 )
 
 // AccountSink receives realtime account updates, keyed and slot-ordered.
-// *rpccache.Client satisfies it.
+// *rpc.Client satisfies it once its cache is enabled (see rpc.Client's
+// EnableCache and CacheStoreStreamed).
 type AccountSink interface {
-	StoreStreamed(account solana.PublicKey, data *rpc.Account, slot uint64)
+	CacheStoreStreamed(account solana.PublicKey, data *rpc.Account, slot uint64)
 }
 
 // PipeAccounts forwards every account update from the stream into sink
@@ -26,7 +27,7 @@ type AccountSink interface {
 //	req := yellowstone.NewRequest(pb.CommitmentLevel_PROCESSED)
 //	yellowstone.AddAccounts(req, "watched", yellowstone.AccountsByOwner(owner))
 //	stream, err := client.Subscribe(ctx, req)
-//	go yellowstone.PipeAccounts(stream, cachedClient)
+//	go yellowstone.PipeAccounts(stream, rpcClient)
 func PipeAccounts(stream *Stream, sink AccountSink) error {
 	for {
 		update, err := stream.Recv()
@@ -50,7 +51,7 @@ func PipeAccounts(stream *Stream, sink AccountSink) error {
 		data := make([]byte, len(converted.Data))
 		copy(data, converted.Data)
 
-		sink.StoreStreamed(converted.Pubkey, &rpc.Account{
+		sink.CacheStoreStreamed(converted.Pubkey, &rpc.Account{
 			Lamports:   converted.Lamports,
 			Owner:      converted.Owner,
 			Data:       rpc.DataBytesOrJSONFromBytes(data),

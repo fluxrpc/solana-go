@@ -24,7 +24,6 @@ go run golang.org/x/pkgsite/cmd/pkgsite@latest -open .
 | [`solana-go`](https://pkg.go.dev/github.com/fluxrpc/solana-go) | Core chain types, codecs, signing, PDA derivation |
 | [`solana-go/rpc`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpc) | JSON-RPC HTTP client + every RPC request/response type, streaming gPA |
 | [`solana-go/ws`](https://pkg.go.dev/github.com/fluxrpc/solana-go/ws) | WebSocket pubsub subscriptions |
-| [`solana-go/rpccache`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpccache) | Account cache over the RPC client, fed by realtime streams |
 | [`solana-go/yellowstone`](https://pkg.go.dev/github.com/fluxrpc/solana-go/yellowstone) | gRPC Geyser client (separate nested module) |
 
 ## Types
@@ -87,27 +86,27 @@ Live test: `YELLOWSTONE_ENDPOINT=... [YELLOWSTONE_TOKEN=...] go test ./yellowsto
 
 ## Cached RPC
 
-The [`rpccache`](rpccache/) package serves account lookups from an in-memory sharded cache backed by the `rpc.Client` for misses — and pipes realtime Yellowstone account updates straight into it, so reads for locally-tracked accounts never leave the process:
+The `rpc.Client` has a built-in account cache — `EnableCache(nil)` and account reads are served from an in-memory sharded cache, with realtime Yellowstone updates piped straight into it so reads for locally-tracked accounts never leave the process:
 
 ```go
-cached := rpccache.New(rpc.New(endpoint), nil)
-defer cached.Close()
+client := rpc.New(endpoint)
+client.EnableCache(nil) // defaults: 800ms freshness, processed commitment
 
 // Mirror every account you care about into the cache...
 stream, _ := ys.Subscribe(ctx, req) // yellowstone subscription with account filters
-go yellowstone.PipeAccounts(stream, cached)
+go yellowstone.PipeAccounts(stream, client)
 
 // ...and these never hit the network again:
-account, err := cached.GetAccountInfo(ctx, watchedKey)
+account, err := client.GetAccountInfo(ctx, watchedKey)
 ```
 
-Entries are served when streamed (the feed keeps them current), immutable (declared never-changing), or fetched within the freshness window (800ms default). Writes are slot-ordered — a late RPC response can never overwrite a newer streamed update — and `getMultipleAccounts` fetches only its cache misses, deduplicated, in one call. A janitor evicts idle entries; `Stats()` reports hits/misses.
+Entries are served when streamed (the feed keeps them current), immutable (`GetAccountInfoImmutable`, for data that never changes), or fetched within the freshness window. Writes are slot-ordered — a late RPC response can never overwrite a newer streamed update — and `GetMultipleAccounts` fetches only its cache misses, deduplicated, in one call. The `WithOpts` variants always bypass the cache; `DisableCache` reverts to pure passthrough. A janitor evicts idle entries; `CacheStats()` reports hits/misses.
 
 | benchmark | result |
 |---|---:|
-| `GetAccountInfo` cache hit | 92 ns, 1 alloc (vs ~125 µs for a localhost RPC round trip) |
-| `StoreStreamed` ingest | 76 ns, 0 allocs (~13M updates/sec) |
-| `GetMultipleAccounts`, 100 cached accounts | 3.5 µs, 2 allocs |
+| `GetAccountInfo` cache hit | 96 ns, 1 alloc (vs ~125 µs for a localhost RPC round trip) |
+| `CacheStoreStreamed` ingest | 76 ns, 0 allocs (~13M updates/sec) |
+| `GetMultipleAccounts`, 100 cached accounts | 3.6 µs, 2 allocs |
 
 ## Install
 
