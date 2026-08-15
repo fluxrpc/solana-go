@@ -10,6 +10,22 @@ A lean port of the core [solana-go](https://github.com/gagliardetto/solana-go) t
 - Only supported serializations: `String`, `Bytes` (binary wire format) and JSON. No BSON, no text marshalers, no kitchen sink.
 - Five dependencies, each earning its keep: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify), `klauspost/compress` (base64+zstd account data), `gobwas/ws` (raw WebSocket frames). The gRPC stack lives only in the nested `yellowstone` module.
 
+## Documentation
+
+Full API documentation is godoc-first: every exported symbol is documented, each package carries an architectural overview in its `doc.go`, and runnable examples appear under Examples on [pkg.go.dev](https://pkg.go.dev/github.com/fluxrpc/solana-go). Browse locally with:
+
+```bash
+go doc github.com/fluxrpc/solana-go            # or any symbol, e.g. go doc rpc.Client
+go run golang.org/x/pkgsite/cmd/pkgsite@latest -open .
+```
+
+| Package | Purpose |
+|---|---|
+| [`solana-go`](https://pkg.go.dev/github.com/fluxrpc/solana-go) | Core chain types, codecs, signing, PDA derivation |
+| [`solana-go/rpc`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpc) | JSON-RPC HTTP client + every RPC request/response type, streaming gPA |
+| [`solana-go/ws`](https://pkg.go.dev/github.com/fluxrpc/solana-go/ws) | WebSocket pubsub subscriptions |
+| [`solana-go/yellowstone`](https://pkg.go.dev/github.com/fluxrpc/solana-go/yellowstone) | gRPC Geyser client (separate nested module) |
+
 ## Types
 
 | Type | File | Notes |

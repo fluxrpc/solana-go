@@ -1,7 +1,3 @@
-// Package yellowstone is a throughput-optimized client for the Yellowstone
-// gRPC Geyser plugin (Dragon's Mouth). It wraps the generated protobuf
-// bindings with a small connection/option layer, a thin Subscribe stream and
-// allocation-light converters into the core solana-go types.
 package yellowstone
 
 import (

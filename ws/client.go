@@ -1,12 +1,3 @@
-// Package ws provides a Solana WebSocket subscription client built on
-// gobwas/ws for low-level frame control.
-//
-// A single read loop reuses one message buffer, parses the notification
-// envelope with sonic and copies only the exact payload slice into buffered
-// per-subscription channels; decoding into typed results happens on the
-// consumer's goroutine, so one slow decode never stalls the socket. When a
-// subscriber falls behind its buffer, notifications for that subscription
-// are dropped (and counted) rather than blocking every other subscription.
 package ws
 
 import (
@@ -36,6 +27,7 @@ var ErrSubscriptionClosed = errors.New("subscription closed")
 // DefaultSubscriptionBuffer is the per-subscription notification buffer.
 const DefaultSubscriptionBuffer = 256
 
+// Options configures a Client beyond the defaults.
 type Options struct {
 	// HTTPHeader is attached to the WebSocket handshake (e.g. auth).
 	HTTPHeader http.Header
@@ -90,6 +82,7 @@ func Connect(ctx context.Context, url string) (*Client, error) {
 	return ConnectWithOptions(ctx, url, nil)
 }
 
+// ConnectWithOptions dials a WebSocket endpoint with explicit options.
 func ConnectWithOptions(ctx context.Context, url string, opts *Options) (*Client, error) {
 	dialer := ws.Dialer{Timeout: 30 * time.Second}
 	buffer := DefaultSubscriptionBuffer

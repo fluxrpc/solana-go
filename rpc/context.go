@@ -1,4 +1,3 @@
-// Package rpc provides the Solana JSON-RPC request and response types.
 package rpc
 
 // Context is the RPC response context, describing the state the response

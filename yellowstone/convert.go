@@ -32,6 +32,7 @@ func (e *TransactionError) Variant() int {
 	return int(binary.LittleEndian.Uint32(e.Raw))
 }
 
+// Error implements the error interface.
 func (e *TransactionError) Error() string {
 	return fmt.Sprintf("transaction error (bincode variant %d, %d bytes)", e.Variant(), len(e.Raw))
 }
