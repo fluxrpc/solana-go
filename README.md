@@ -24,6 +24,7 @@ go run golang.org/x/pkgsite/cmd/pkgsite@latest -open .
 | [`solana-go`](https://pkg.go.dev/github.com/fluxrpc/solana-go) | Core chain types, codecs, signing, PDA derivation |
 | [`solana-go/rpc`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpc) | JSON-RPC HTTP client + every RPC request/response type, streaming gPA |
 | [`solana-go/ws`](https://pkg.go.dev/github.com/fluxrpc/solana-go/ws) | WebSocket pubsub subscriptions |
+| [`solana-go/rpccache`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpccache) | Account cache over the RPC client, fed by realtime streams |
 | [`solana-go/yellowstone`](https://pkg.go.dev/github.com/fluxrpc/solana-go/yellowstone) | gRPC Geyser client (separate nested module) |
 
 ## Types
