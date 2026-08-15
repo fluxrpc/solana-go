@@ -84,6 +84,30 @@ The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go ge
 
 Live test: `YELLOWSTONE_ENDPOINT=... [YELLOWSTONE_TOKEN=...] go test ./yellowstone/ -run TestLive`.
 
+## Cached RPC
+
+The [`rpccache`](rpccache/) package serves account lookups from an in-memory sharded cache backed by the `rpc.Client` for misses — and pipes realtime Yellowstone account updates straight into it, so reads for locally-tracked accounts never leave the process:
+
+```go
+cached := rpccache.New(rpc.New(endpoint), nil)
+defer cached.Close()
+
+// Mirror every account you care about into the cache...
+stream, _ := ys.Subscribe(ctx, req) // yellowstone subscription with account filters
+go yellowstone.PipeAccounts(stream, cached)
+
+// ...and these never hit the network again:
+account, err := cached.GetAccountInfo(ctx, watchedKey)
+```
+
+Entries are served when streamed (the feed keeps them current), immutable (declared never-changing), or fetched within the freshness window (800ms default). Writes are slot-ordered — a late RPC response can never overwrite a newer streamed update — and `getMultipleAccounts` fetches only its cache misses, deduplicated, in one call. A janitor evicts idle entries; `Stats()` reports hits/misses.
+
+| benchmark | result |
+|---|---:|
+| `GetAccountInfo` cache hit | 92 ns, 1 alloc (vs ~125 µs for a localhost RPC round trip) |
+| `StoreStreamed` ingest | 76 ns, 0 allocs (~13M updates/sec) |
+| `GetMultipleAccounts`, 100 cached accounts | 3.5 µs, 2 allocs |
+
 ## Install
 
 ```bash
