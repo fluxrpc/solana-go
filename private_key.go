@@ -68,10 +68,14 @@ func (k PrivateKey) Sign(msg []byte) (Signature, error) {
 	return SignatureFromBytes(voied25519.Sign(voied25519.PrivateKey(k), msg)), nil
 }
 
+// Bytes returns the raw 64-byte keypair. The returned slice shares the
+// key's backing storage.
 func (k PrivateKey) Bytes() []byte {
 	return k
 }
 
+// MarshalJSON implements json.Marshaler, encoding the key as a base58
+// JSON string.
 func (k PrivateKey) MarshalJSON() ([]byte, error) {
 	buf := make([]byte, 0, len(k)*2+2)
 	buf = append(buf, '"')
@@ -80,6 +84,8 @@ func (k PrivateKey) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
+// UnmarshalJSON implements json.Unmarshaler, decoding a base58 JSON
+// string and validating the key size.
 func (k *PrivateKey) UnmarshalJSON(data []byte) error {
 	s, err := jsonUnquote(data)
 	if err != nil {
@@ -94,6 +100,8 @@ func (k *PrivateKey) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// String returns the base58 representation of the keypair. Handle with
+// care: this is secret material.
 func (k PrivateKey) String() string {
 	return base58.Encode(k)
 }

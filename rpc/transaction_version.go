@@ -8,10 +8,14 @@ import "strconv"
 type TransactionVersion int
 
 const (
+	// LegacyTransactionVersion is reported for legacy (unversioned)
+	// transactions, serialized as the JSON string "legacy".
 	LegacyTransactionVersion TransactionVersion = -1
 	legacyVersion                               = `"legacy"`
 )
 
+// UnmarshalJSON implements json.Unmarshaler, decoding a version number;
+// "legacy" (as well as null and "") decodes to LegacyTransactionVersion.
 func (a *TransactionVersion) UnmarshalJSON(b []byte) error {
 	// Ignore null, like in the main JSON package.
 	s := string(b)
@@ -28,6 +32,8 @@ func (a *TransactionVersion) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// MarshalJSON implements json.Marshaler, encoding the version as a number,
+// or as the string "legacy" for LegacyTransactionVersion.
 func (a TransactionVersion) MarshalJSON() ([]byte, error) {
 	if a == LegacyTransactionVersion {
 		return []byte(legacyVersion), nil

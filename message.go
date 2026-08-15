@@ -11,6 +11,8 @@ import (
 	"github.com/fluxrpc/base58"
 )
 
+// MessageHeader counts the signatures a transaction requires and marks
+// which account keys are read-only.
 type MessageHeader struct {
 	// The total number of signatures required to make the transaction valid.
 	// The signatures must match the first `numRequiredSignatures` of `message.account_keys`.
@@ -23,6 +25,8 @@ type MessageHeader struct {
 	NumReadonlyUnsignedAccounts uint8 `json:"numReadonlyUnsignedAccounts"`
 }
 
+// MessageVersion selects the message wire format: legacy or v0 (which
+// adds address table lookups).
 type MessageVersion int
 
 const (
@@ -39,10 +43,14 @@ const messageVersionPrefix = 0x80
 // numbers instead of a base64 string.
 type Uint8SliceAsNum []uint8
 
+// MarshalJSON implements json.Marshaler, encoding the slice as a JSON
+// array of numbers.
 func (slice Uint8SliceAsNum) MarshalJSON() ([]byte, error) {
 	return appendUint8Array(make([]byte, 0, len(slice)*4+2), slice), nil
 }
 
+// UnmarshalJSON implements json.Unmarshaler, decoding a JSON array of
+// numbers and rejecting values beyond the uint8 range.
 func (slice *Uint8SliceAsNum) UnmarshalJSON(data []byte) error {
 	var values []uint16
 	if err := sonic.Unmarshal(data, &values); err != nil {
@@ -59,12 +67,15 @@ func (slice *Uint8SliceAsNum) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MessageAddressTableLookup loads additional transaction accounts from an
+// on-chain address lookup table.
 type MessageAddressTableLookup struct {
 	AccountKey      PublicKey       `json:"accountKey"` // The account key of the address table.
 	WritableIndexes Uint8SliceAsNum `json:"writableIndexes"`
 	ReadonlyIndexes Uint8SliceAsNum `json:"readonlyIndexes"`
 }
 
+// MessageAddressTableLookupSlice is a list of address table lookups.
 type MessageAddressTableLookupSlice []MessageAddressTableLookup
 
 // NumLookups returns the number of accounts from all the lookups.
@@ -87,6 +98,11 @@ func (lookups MessageAddressTableLookupSlice) NumWritableLookups() int {
 	return count
 }
 
+// Message is the content of a transaction: the account keys it loads, a
+// recent blockhash, and the instructions to execute. It supports both the
+// legacy and the v0 (address table lookup) wire formats; see
+// MarshalBinary/UnmarshalBinary for the binary form and
+// MarshalJSON/UnmarshalJSON for the RPC JSON form.
 type Message struct {
 	version MessageVersion
 
@@ -296,6 +312,8 @@ func (mx *Message) UnmarshalJSON(data []byte) error {
 	return sonic.Unmarshal(*aux.AddressTableLookups, &mx.AddressTableLookups)
 }
 
+// MarshalBinary encodes the message in its Solana wire format (legacy or
+// v0 depending on the version) in a single allocation.
 func (mx *Message) MarshalBinary() ([]byte, error) {
 	switch mx.version {
 	case MessageVersionLegacy:

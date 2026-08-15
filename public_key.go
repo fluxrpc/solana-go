@@ -15,6 +15,8 @@ const (
 	publicKeyMinEncodedLength = PublicKeyLength
 )
 
+// PublicKey is a 32-byte Solana account address (an ed25519 public key or
+// a program-derived address).
 type PublicKey [PublicKeyLength]byte
 
 // PublicKeyFromBytes creates a PublicKey from a byte slice that must be 32 bytes long.
@@ -70,6 +72,8 @@ func PublicKeyFromBase58(in string) (out PublicKey, err error) {
 	return decoded, nil
 }
 
+// MarshalJSON implements json.Marshaler, encoding the key as a base58
+// JSON string.
 func (p PublicKey) MarshalJSON() ([]byte, error) {
 	// Write directly into a JSON-quoted buffer. Base58 characters are all ASCII
 	// and never contain JSON-escape characters, so we can skip json.Marshal.
@@ -80,6 +84,8 @@ func (p PublicKey) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
+// UnmarshalJSON implements json.Unmarshaler, decoding a base58 JSON
+// string.
 func (p *PublicKey) UnmarshalJSON(data []byte) (err error) {
 	s, err := jsonUnquote(data)
 	if err != nil {
@@ -94,10 +100,12 @@ func (p *PublicKey) UnmarshalJSON(data []byte) (err error) {
 	return nil
 }
 
+// Equals reports whether two public keys are the same.
 func (p PublicKey) Equals(pb PublicKey) bool {
 	return p == pb
 }
 
+// Bytes returns the key as a byte slice backed by a copy of the key.
 func (p PublicKey) Bytes() []byte {
 	return p[:]
 }
@@ -108,6 +116,7 @@ func (p PublicKey) IsZero() bool {
 	return p == (PublicKey{})
 }
 
+// String returns the base58 representation of the key.
 func (p PublicKey) String() string {
 	return base58.Encode32((*[32]byte)(&p))
 }

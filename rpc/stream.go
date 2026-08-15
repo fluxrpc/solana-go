@@ -14,6 +14,8 @@ type RPCError struct {
 	Data    any    `json:"data,omitempty"`
 }
 
+// Error implements the error interface, formatting the JSON-RPC error code
+// and message.
 func (e *RPCError) Error() string {
 	return fmt.Sprintf("rpc error %d: %s", e.Code, e.Message)
 }

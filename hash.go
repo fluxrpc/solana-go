@@ -33,22 +33,29 @@ func HashFromBytes(in []byte) Hash {
 	return Hash(PublicKeyFromBytes(in))
 }
 
+// IsZero reports whether the hash is all zeros.
 func (h Hash) IsZero() bool {
 	return h == Hash{}
 }
 
+// Equals reports whether two hashes are the same.
 func (h Hash) Equals(other Hash) bool {
 	return h == other
 }
 
+// Bytes returns the hash as a byte slice backed by a copy.
 func (h Hash) Bytes() []byte {
 	return h[:]
 }
 
+// MarshalJSON implements json.Marshaler, encoding the hash as a base58
+// JSON string.
 func (h Hash) MarshalJSON() ([]byte, error) {
 	return PublicKey(h).MarshalJSON()
 }
 
+// UnmarshalJSON implements json.Unmarshaler, decoding a base58 JSON
+// string.
 func (h *Hash) UnmarshalJSON(data []byte) error {
 	s, err := jsonUnquote(data)
 	if err != nil {
@@ -63,6 +70,7 @@ func (h *Hash) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// String returns the base58 representation of the hash.
 func (h Hash) String() string {
 	return base58.Encode32((*[32]byte)(&h))
 }

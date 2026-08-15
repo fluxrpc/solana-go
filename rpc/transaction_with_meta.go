@@ -118,7 +118,11 @@ type AccountKey struct {
 type AccountKeySource string
 
 const (
+	// AccountKeySourceTransaction marks a key listed in the transaction
+	// message itself.
 	AccountKeySourceTransaction AccountKeySource = "transaction"
+	// AccountKeySourceLookupTable marks a key resolved from an address
+	// lookup table.
 	AccountKeySourceLookupTable AccountKeySource = "lookupTable"
 )
 

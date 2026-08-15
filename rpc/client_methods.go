@@ -29,6 +29,8 @@ func (c *Client) GetAccountInfo(ctx context.Context, account solana.PublicKey) (
 	return c.GetAccountInfoWithOpts(ctx, account, &GetAccountInfoOpts{Encoding: solana.EncodingBase64})
 }
 
+// GetAccountInfoWithOpts is GetAccountInfo with explicit options. Returns
+// ErrNotFound if the account does not exist.
 func (c *Client) GetAccountInfoWithOpts(ctx context.Context, account solana.PublicKey, opts *GetAccountInfoOpts) (*GetAccountInfoResult, error) {
 	params := []any{account}
 	if opts != nil {
@@ -44,15 +46,21 @@ func (c *Client) GetAccountInfoWithOpts(ctx context.Context, account solana.Publ
 	return &result, nil
 }
 
+// GetBalance returns the lamport balance of the account via getBalance.
+// Commitment "" uses the node default.
 func (c *Client) GetBalance(ctx context.Context, account solana.PublicKey, commitment CommitmentType) (*GetBalanceResult, error) {
 	result, err := call[GetBalanceResult](ctx, c, "getBalance", withCommitment([]any{account}, commitment)...)
 	return &result, err
 }
 
+// GetMultipleAccounts returns the information of multiple accounts via
+// getMultipleAccounts, requesting base64 encoding. Accounts that do not
+// exist come back as nil entries in the result.
 func (c *Client) GetMultipleAccounts(ctx context.Context, accounts ...solana.PublicKey) (*GetMultipleAccountsResult, error) {
 	return c.GetMultipleAccountsWithOpts(ctx, accounts, &GetMultipleAccountsOpts{Encoding: solana.EncodingBase64})
 }
 
+// GetMultipleAccountsWithOpts is GetMultipleAccounts with explicit options.
 func (c *Client) GetMultipleAccountsWithOpts(ctx context.Context, accounts []solana.PublicKey, opts *GetMultipleAccountsOpts) (*GetMultipleAccountsResult, error) {
 	params := []any{accounts}
 	if opts != nil {
@@ -62,10 +70,15 @@ func (c *Client) GetMultipleAccountsWithOpts(ctx context.Context, accounts []sol
 	return &result, err
 }
 
+// GetProgramAccounts returns all accounts owned by the program via
+// getProgramAccounts, with the node's default options.
 func (c *Client) GetProgramAccounts(ctx context.Context, program solana.PublicKey) (GetProgramAccountsResult, error) {
 	return c.GetProgramAccountsWithOpts(ctx, program, nil)
 }
 
+// GetProgramAccountsWithOpts is GetProgramAccounts with explicit options
+// (filters, encoding, data slice, commitment). For very large result sets
+// consider GetProgramAccountsStream instead.
 func (c *Client) GetProgramAccountsWithOpts(ctx context.Context, program solana.PublicKey, opts *GetProgramAccountsOpts) (GetProgramAccountsResult, error) {
 	params := []any{program}
 	if opts != nil {
@@ -74,6 +87,9 @@ func (c *Client) GetProgramAccountsWithOpts(ctx context.Context, program solana.
 	return call[GetProgramAccountsResult](ctx, c, "getProgramAccounts", params...)
 }
 
+// GetLargestAccounts returns the 20 largest accounts by lamport balance via
+// getLargestAccounts. Empty commitment and filter are omitted from the
+// request so the node defaults apply.
 func (c *Client) GetLargestAccounts(ctx context.Context, commitment CommitmentType, filter LargestAccountsFilterType) (*GetLargestAccountsResult, error) {
 	opts := M{}
 	if commitment != "" {
@@ -90,6 +106,9 @@ func (c *Client) GetLargestAccounts(ctx context.Context, commitment CommitmentTy
 	return &result, err
 }
 
+// GetMinimumBalanceForRentExemption returns the minimum lamport balance that
+// makes an account of the given data size rent exempt. Commitment "" uses
+// the node default.
 func (c *Client) GetMinimumBalanceForRentExemption(ctx context.Context, dataSize uint64, commitment CommitmentType) (uint64, error) {
 	return call[uint64](ctx, c, "getMinimumBalanceForRentExemption", withCommitment([]any{dataSize}, commitment)...)
 }
@@ -104,6 +123,9 @@ func (c *Client) GetBlock(ctx context.Context, slot uint64) (*GetBlockResult, er
 	return c.GetBlockWithOpts(ctx, slot, &GetBlockOpts{MaxSupportedTransactionVersion: &version})
 }
 
+// GetBlockWithOpts is GetBlock with explicit options; the configured
+// encoding is validated first. Returns ErrNotFound when there is no
+// confirmed block at the slot.
 func (c *Client) GetBlockWithOpts(ctx context.Context, slot uint64, opts *GetBlockOpts) (*GetBlockResult, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, err
@@ -126,19 +148,27 @@ func (c *Client) GetParsedBlock(ctx context.Context, slot uint64, opts *GetBlock
 	return callNullable[GetParsedBlockResult](ctx, c, "getBlock", params...)
 }
 
+// GetBlockHeight returns the current block height via getBlockHeight.
+// Commitment "" uses the node default.
 func (c *Client) GetBlockHeight(ctx context.Context, commitment CommitmentType) (uint64, error) {
 	return call[uint64](ctx, c, "getBlockHeight", commitmentParam(commitment)...)
 }
 
+// GetBlockCommitment returns the amount of cluster stake that voted on the
+// block at the given slot, via getBlockCommitment.
 func (c *Client) GetBlockCommitment(ctx context.Context, slot uint64) (*GetBlockCommitmentResult, error) {
 	result, err := call[GetBlockCommitmentResult](ctx, c, "getBlockCommitment", slot)
 	return &result, err
 }
 
+// GetBlockProduction returns recent block production information for the
+// current epoch via getBlockProduction.
 func (c *Client) GetBlockProduction(ctx context.Context) (*GetBlockProductionResult, error) {
 	return c.GetBlockProductionWithOpts(ctx, nil)
 }
 
+// GetBlockProductionWithOpts is GetBlockProduction with explicit options
+// (identity, slot range, commitment).
 func (c *Client) GetBlockProductionWithOpts(ctx context.Context, opts *GetBlockProductionOpts) (*GetBlockProductionResult, error) {
 	params := []any{}
 	if opts != nil {
@@ -148,10 +178,15 @@ func (c *Client) GetBlockProductionWithOpts(ctx context.Context, opts *GetBlockP
 	return &result, err
 }
 
+// GetBlockTime returns the estimated production time of the block at the
+// given slot via getBlockTime.
 func (c *Client) GetBlockTime(ctx context.Context, slot uint64) (solana.UnixTimeSeconds, error) {
 	return call[solana.UnixTimeSeconds](ctx, c, "getBlockTime", slot)
 }
 
+// GetBlocks returns the confirmed blocks between startSlot and endSlot
+// (inclusive) via getBlocks. A nil endSlot leaves the upper bound to the
+// node; commitment "" uses the node default.
 func (c *Client) GetBlocks(ctx context.Context, startSlot uint64, endSlot *uint64, commitment CommitmentType) (BlocksResult, error) {
 	params := []any{startSlot}
 	if endSlot != nil {
@@ -160,10 +195,14 @@ func (c *Client) GetBlocks(ctx context.Context, startSlot uint64, endSlot *uint6
 	return call[BlocksResult](ctx, c, "getBlocks", withCommitment(params, commitment)...)
 }
 
+// GetBlocksWithLimit returns up to limit confirmed blocks starting at
+// startSlot, via getBlocksWithLimit.
 func (c *Client) GetBlocksWithLimit(ctx context.Context, startSlot uint64, limit uint64, commitment CommitmentType) (BlocksResult, error) {
 	return call[BlocksResult](ctx, c, "getBlocksWithLimit", withCommitment([]any{startSlot, limit}, commitment)...)
 }
 
+// GetFirstAvailableBlock returns the slot of the lowest confirmed block
+// still present in the node's ledger, via getFirstAvailableBlock.
 func (c *Client) GetFirstAvailableBlock(ctx context.Context) (uint64, error) {
 	return call[uint64](ctx, c, "getFirstAvailableBlock")
 }
@@ -181,6 +220,8 @@ func (c *Client) GetTransaction(ctx context.Context, signature solana.Signature)
 	})
 }
 
+// GetTransactionWithOpts is GetTransaction with explicit options. Returns
+// ErrNotFound for unknown transactions.
 func (c *Client) GetTransactionWithOpts(ctx context.Context, signature solana.Signature, opts *GetTransactionOpts) (*GetTransactionResult, error) {
 	params := []any{signature}
 	if opts != nil {
@@ -204,14 +245,21 @@ func (c *Client) GetParsedTransaction(ctx context.Context, signature solana.Sign
 	return callNullable[GetParsedTransactionResult](ctx, c, "getTransaction", signature, obj)
 }
 
+// GetTransactionCount returns the current transaction count from the ledger
+// via getTransactionCount. Commitment "" uses the node default.
 func (c *Client) GetTransactionCount(ctx context.Context, commitment CommitmentType) (uint64, error) {
 	return call[uint64](ctx, c, "getTransactionCount", commitmentParam(commitment)...)
 }
 
+// GetSignaturesForAddress returns signatures of confirmed transactions that
+// involve the account, newest first, via getSignaturesForAddress with the
+// node's default options.
 func (c *Client) GetSignaturesForAddress(ctx context.Context, account solana.PublicKey) ([]*TransactionSignature, error) {
 	return c.GetSignaturesForAddressWithOpts(ctx, account, nil)
 }
 
+// GetSignaturesForAddressWithOpts is GetSignaturesForAddress with explicit
+// options (limit, before/until cursors, commitment).
 func (c *Client) GetSignaturesForAddressWithOpts(ctx context.Context, account solana.PublicKey, opts *GetSignaturesForAddressOpts) ([]*TransactionSignature, error) {
 	params := []any{account}
 	if opts != nil {
@@ -220,6 +268,10 @@ func (c *Client) GetSignaturesForAddressWithOpts(ctx context.Context, account so
 	return call[[]*TransactionSignature](ctx, c, "getSignaturesForAddress", params...)
 }
 
+// GetSignatureStatuses returns the processing statuses of the given
+// signatures via getSignatureStatuses. Unless searchTransactionHistory is
+// set, the node only consults its recent status cache; unknown signatures
+// come back as nil entries.
 func (c *Client) GetSignatureStatuses(ctx context.Context, searchTransactionHistory bool, signatures ...solana.Signature) (*GetSignatureStatusesResult, error) {
 	params := []any{signatures}
 	if searchTransactionHistory {
@@ -237,6 +289,9 @@ func (c *Client) SendTransaction(ctx context.Context, tx *solana.Transaction) (s
 	return c.SendTransactionWithOpts(ctx, tx, TransactionOpts{})
 }
 
+// SendTransactionWithOpts serializes the transaction and submits it via
+// sendTransaction with the given options; it is SendTransaction with
+// explicit options.
 func (c *Client) SendTransactionWithOpts(ctx context.Context, tx *solana.Transaction, opts TransactionOpts) (solana.Signature, error) {
 	raw, err := tx.MarshalBinary()
 	if err != nil {
@@ -245,6 +300,8 @@ func (c *Client) SendTransactionWithOpts(ctx context.Context, tx *solana.Transac
 	return c.SendRawTransactionWithOpts(ctx, raw, opts)
 }
 
+// SendRawTransactionWithOpts submits an already-serialized transaction,
+// base64-encoding it for the sendTransaction call.
 func (c *Client) SendRawTransactionWithOpts(ctx context.Context, raw []byte, opts TransactionOpts) (solana.Signature, error) {
 	return call[solana.Signature](ctx, c, "sendTransaction", solana.Base64(raw).String(), opts.ToMap())
 }
@@ -255,10 +312,15 @@ func (c *Client) SendEncodedTransaction(ctx context.Context, encoded string) (so
 	return call[solana.Signature](ctx, c, "sendTransaction", encoded, opts.ToMap())
 }
 
+// SimulateTransaction simulates sending the transaction via
+// simulateTransaction, with the node's default options.
 func (c *Client) SimulateTransaction(ctx context.Context, tx *solana.Transaction) (*SimulateTransactionResponse, error) {
 	return c.SimulateTransactionWithOpts(ctx, tx, nil)
 }
 
+// SimulateTransactionWithOpts is SimulateTransaction with explicit options.
+// The transaction is sent base64-encoded; unset options are omitted from the
+// request so the node defaults apply.
 func (c *Client) SimulateTransactionWithOpts(ctx context.Context, tx *solana.Transaction, opts *SimulateTransactionOpts) (*SimulateTransactionResponse, error) {
 	raw, err := tx.MarshalBinary()
 	if err != nil {
@@ -286,27 +348,39 @@ func (c *Client) SimulateTransactionWithOpts(ctx context.Context, tx *solana.Tra
 	return &result, err
 }
 
+// RequestAirdrop requests an airdrop of lamports to the account via
+// requestAirdrop and returns the signature of the airdrop transaction.
 func (c *Client) RequestAirdrop(ctx context.Context, account solana.PublicKey, lamports uint64, commitment CommitmentType) (solana.Signature, error) {
 	return call[solana.Signature](ctx, c, "requestAirdrop", withCommitment([]any{account, lamports}, commitment)...)
 }
 
 // --- Blockhashes & fees ---
 
+// GetLatestBlockhash returns the latest blockhash and the last block height
+// at which it will be valid, via getLatestBlockhash. Commitment "" uses the
+// node default.
 func (c *Client) GetLatestBlockhash(ctx context.Context, commitment CommitmentType) (*GetLatestBlockhashResult, error) {
 	result, err := call[GetLatestBlockhashResult](ctx, c, "getLatestBlockhash", commitmentParam(commitment)...)
 	return &result, err
 }
 
+// IsBlockhashValid reports whether the blockhash is still valid for
+// submitting transactions, via isBlockhashValid.
 func (c *Client) IsBlockhashValid(ctx context.Context, blockhash solana.Hash, commitment CommitmentType) (*IsValidBlockhashResult, error) {
 	result, err := call[IsValidBlockhashResult](ctx, c, "isBlockhashValid", withCommitment([]any{blockhash}, commitment)...)
 	return &result, err
 }
 
+// GetFeeForMessage returns the fee the network will charge for the given
+// base64-encoded message, via getFeeForMessage.
 func (c *Client) GetFeeForMessage(ctx context.Context, messageBase64 string, commitment CommitmentType) (*GetFeeForMessageResult, error) {
 	result, err := call[GetFeeForMessageResult](ctx, c, "getFeeForMessage", withCommitment([]any{messageBase64}, commitment)...)
 	return &result, err
 }
 
+// GetRecentPrioritizationFees returns per-slot prioritization fees from
+// recent blocks via getRecentPrioritizationFees. When accounts are given,
+// fees reflect transactions that lock all of them.
 func (c *Client) GetRecentPrioritizationFees(ctx context.Context, accounts []solana.PublicKey) ([]PriorizationFeeResult, error) {
 	params := []any{}
 	if len(accounts) > 0 {
@@ -317,57 +391,82 @@ func (c *Client) GetRecentPrioritizationFees(ctx context.Context, accounts []sol
 
 // --- Cluster & network ---
 
+// GetSlot returns the slot the node has reached for the given commitment,
+// via getSlot. Commitment "" uses the node default.
 func (c *Client) GetSlot(ctx context.Context, commitment CommitmentType) (uint64, error) {
 	return call[uint64](ctx, c, "getSlot", commitmentParam(commitment)...)
 }
 
+// GetSlotLeader returns the identity of the current slot leader via
+// getSlotLeader.
 func (c *Client) GetSlotLeader(ctx context.Context, commitment CommitmentType) (solana.PublicKey, error) {
 	return call[solana.PublicKey](ctx, c, "getSlotLeader", commitmentParam(commitment)...)
 }
 
+// GetSlotLeaders returns the slot leaders for limit slots starting at slot
+// start, via getSlotLeaders.
 func (c *Client) GetSlotLeaders(ctx context.Context, start uint64, limit uint64) ([]solana.PublicKey, error) {
 	return call[[]solana.PublicKey](ctx, c, "getSlotLeaders", start, limit)
 }
 
+// GetClusterNodes returns information about all the nodes participating in
+// the cluster, via getClusterNodes.
 func (c *Client) GetClusterNodes(ctx context.Context) ([]GetClusterNodesResult, error) {
 	return call[[]GetClusterNodesResult](ctx, c, "getClusterNodes")
 }
 
+// GetVersion returns the solana-core software version running on the node,
+// via getVersion.
 func (c *Client) GetVersion(ctx context.Context) (*GetVersionResult, error) {
 	result, err := call[GetVersionResult](ctx, c, "getVersion")
 	return &result, err
 }
 
+// GetHealth returns the node's health via getHealth: "ok" when healthy, an
+// RPC error otherwise.
 func (c *Client) GetHealth(ctx context.Context) (string, error) {
 	return call[string](ctx, c, "getHealth")
 }
 
+// GetIdentity returns the identity public key of the node via getIdentity.
 func (c *Client) GetIdentity(ctx context.Context) (*GetIdentityResult, error) {
 	result, err := call[GetIdentityResult](ctx, c, "getIdentity")
 	return &result, err
 }
 
+// GetGenesisHash returns the cluster's genesis hash via getGenesisHash.
 func (c *Client) GetGenesisHash(ctx context.Context) (solana.Hash, error) {
 	return call[solana.Hash](ctx, c, "getGenesisHash")
 }
 
+// GetHighestSnapshotSlot returns the highest slots the node has full and
+// incremental snapshots for, via getHighestSnapshotSlot.
 func (c *Client) GetHighestSnapshotSlot(ctx context.Context) (*GetHighestSnapshotSlotResult, error) {
 	result, err := call[GetHighestSnapshotSlotResult](ctx, c, "getHighestSnapshotSlot")
 	return &result, err
 }
 
+// GetMaxRetransmitSlot returns the max slot seen from the retransmit stage,
+// via getMaxRetransmitSlot.
 func (c *Client) GetMaxRetransmitSlot(ctx context.Context) (uint64, error) {
 	return call[uint64](ctx, c, "getMaxRetransmitSlot")
 }
 
+// GetMaxShredInsertSlot returns the max slot seen after shred insert, via
+// getMaxShredInsertSlot.
 func (c *Client) GetMaxShredInsertSlot(ctx context.Context) (uint64, error) {
 	return call[uint64](ctx, c, "getMaxShredInsertSlot")
 }
 
+// MinimumLedgerSlot returns the lowest slot the node has information about
+// in its ledger, via minimumLedgerSlot.
 func (c *Client) MinimumLedgerSlot(ctx context.Context) (uint64, error) {
 	return call[uint64](ctx, c, "minimumLedgerSlot")
 }
 
+// GetRecentPerformanceSamples returns recent per-slot performance samples
+// via getRecentPerformanceSamples. A nil limit leaves the sample count to
+// the node.
 func (c *Client) GetRecentPerformanceSamples(ctx context.Context, limit *uint) ([]GetRecentPerformanceSamplesResult, error) {
 	params := []any{}
 	if limit != nil {
@@ -378,26 +477,37 @@ func (c *Client) GetRecentPerformanceSamples(ctx context.Context, limit *uint) (
 
 // --- Epoch, inflation & supply ---
 
+// GetEpochInfo returns information about the current epoch via getEpochInfo.
+// Commitment "" uses the node default.
 func (c *Client) GetEpochInfo(ctx context.Context, commitment CommitmentType) (*GetEpochInfoResult, error) {
 	result, err := call[GetEpochInfoResult](ctx, c, "getEpochInfo", commitmentParam(commitment)...)
 	return &result, err
 }
 
+// GetEpochSchedule returns the cluster's epoch schedule configuration via
+// getEpochSchedule.
 func (c *Client) GetEpochSchedule(ctx context.Context) (*GetEpochScheduleResult, error) {
 	result, err := call[GetEpochScheduleResult](ctx, c, "getEpochSchedule")
 	return &result, err
 }
 
+// GetInflationGovernor returns the current inflation governor parameters via
+// getInflationGovernor.
 func (c *Client) GetInflationGovernor(ctx context.Context, commitment CommitmentType) (*GetInflationGovernorResult, error) {
 	result, err := call[GetInflationGovernorResult](ctx, c, "getInflationGovernor", commitmentParam(commitment)...)
 	return &result, err
 }
 
+// GetInflationRate returns the inflation values for the current epoch via
+// getInflationRate.
 func (c *Client) GetInflationRate(ctx context.Context) (*GetInflationRateResult, error) {
 	result, err := call[GetInflationRateResult](ctx, c, "getInflationRate")
 	return &result, err
 }
 
+// GetInflationReward returns the inflation (staking) reward for the given
+// addresses for an epoch, via getInflationReward. Addresses without a reward
+// come back as nil entries.
 func (c *Client) GetInflationReward(ctx context.Context, addresses []solana.PublicKey, opts *GetInflationRewardOpts) ([]*GetInflationRewardResult, error) {
 	params := []any{addresses}
 	if opts != nil {
@@ -406,10 +516,14 @@ func (c *Client) GetInflationReward(ctx context.Context, addresses []solana.Publ
 	return call[[]*GetInflationRewardResult](ctx, c, "getInflationReward", params...)
 }
 
+// GetSupply returns information about the current lamport supply via
+// getSupply. Commitment "" uses the node default.
 func (c *Client) GetSupply(ctx context.Context, commitment CommitmentType) (*GetSupplyResult, error) {
 	return c.GetSupplyWithOpts(ctx, &GetSupplyOpts{Commitment: commitment})
 }
 
+// GetSupplyWithOpts is GetSupply with explicit options (commitment,
+// excluding the non-circulating accounts list).
 func (c *Client) GetSupplyWithOpts(ctx context.Context, opts *GetSupplyOpts) (*GetSupplyResult, error) {
 	params := []any{}
 	if opts != nil {
@@ -419,10 +533,15 @@ func (c *Client) GetSupplyWithOpts(ctx context.Context, opts *GetSupplyOpts) (*G
 	return &result, err
 }
 
+// GetLeaderSchedule returns the leader schedule for the current epoch via
+// getLeaderSchedule.
 func (c *Client) GetLeaderSchedule(ctx context.Context) (GetLeaderScheduleResult, error) {
 	return c.GetLeaderScheduleWithOpts(ctx, nil)
 }
 
+// GetLeaderScheduleWithOpts is GetLeaderSchedule with explicit options: an
+// epoch (nil means the current one) and an optional identity filter and
+// commitment.
 func (c *Client) GetLeaderScheduleWithOpts(ctx context.Context, opts *GetLeaderScheduleOpts) (GetLeaderScheduleResult, error) {
 	params := []any{nil}
 	if opts != nil {
@@ -443,6 +562,8 @@ func (c *Client) GetLeaderScheduleWithOpts(ctx context.Context, opts *GetLeaderS
 	return call[GetLeaderScheduleResult](ctx, c, "getLeaderSchedule", params...)
 }
 
+// GetVoteAccounts returns the current and delinquent vote accounts via
+// getVoteAccounts. A nil opts uses the node defaults.
 func (c *Client) GetVoteAccounts(ctx context.Context, opts *GetVoteAccountsOpts) (*GetVoteAccountsResult, error) {
 	params := []any{}
 	if opts != nil {
@@ -452,6 +573,8 @@ func (c *Client) GetVoteAccounts(ctx context.Context, opts *GetVoteAccountsOpts)
 	return &result, err
 }
 
+// GetStakeMinimumDelegation returns the stake minimum delegation in
+// lamports, via getStakeMinimumDelegation.
 func (c *Client) GetStakeMinimumDelegation(ctx context.Context, commitment CommitmentType) (*GetStakeMinimumDelegationResult, error) {
 	result, err := call[GetStakeMinimumDelegationResult](ctx, c, "getStakeMinimumDelegation", commitmentParam(commitment)...)
 	return &result, err
@@ -459,15 +582,23 @@ func (c *Client) GetStakeMinimumDelegation(ctx context.Context, commitment Commi
 
 // --- Tokens ---
 
+// GetTokenAccountBalance returns the token balance of an SPL token account
+// via getTokenAccountBalance. Commitment "" uses the node default.
 func (c *Client) GetTokenAccountBalance(ctx context.Context, account solana.PublicKey, commitment CommitmentType) (*GetTokenAccountBalanceResult, error) {
 	result, err := call[GetTokenAccountBalanceResult](ctx, c, "getTokenAccountBalance", withCommitment([]any{account}, commitment)...)
 	return &result, err
 }
 
+// GetTokenAccountsByOwner returns all SPL token accounts of the given owner
+// via getTokenAccountsByOwner, filtered by the mint or token program in
+// config.
 func (c *Client) GetTokenAccountsByOwner(ctx context.Context, owner solana.PublicKey, config *GetTokenAccountsConfig, opts *GetTokenAccountsOpts) (*GetTokenAccountsResult, error) {
 	return c.getTokenAccountsBy(ctx, "getTokenAccountsByOwner", owner, config, opts)
 }
 
+// GetTokenAccountsByDelegate returns all SPL token accounts with the given
+// approved delegate via getTokenAccountsByDelegate, filtered by the mint or
+// token program in config.
 func (c *Client) GetTokenAccountsByDelegate(ctx context.Context, delegate solana.PublicKey, config *GetTokenAccountsConfig, opts *GetTokenAccountsOpts) (*GetTokenAccountsResult, error) {
 	return c.getTokenAccountsBy(ctx, "getTokenAccountsByDelegate", delegate, config, opts)
 }
@@ -484,11 +615,15 @@ func (c *Client) getTokenAccountsBy(ctx context.Context, method string, key sola
 	return &result, err
 }
 
+// GetTokenLargestAccounts returns the 20 largest accounts of an SPL token
+// mint via getTokenLargestAccounts. Commitment "" uses the node default.
 func (c *Client) GetTokenLargestAccounts(ctx context.Context, mint solana.PublicKey, commitment CommitmentType) (*GetTokenLargestAccountsResult, error) {
 	result, err := call[GetTokenLargestAccountsResult](ctx, c, "getTokenLargestAccounts", withCommitment([]any{mint}, commitment)...)
 	return &result, err
 }
 
+// GetTokenSupply returns the total supply of an SPL token mint via
+// getTokenSupply. Commitment "" uses the node default.
 func (c *Client) GetTokenSupply(ctx context.Context, mint solana.PublicKey, commitment CommitmentType) (*GetTokenSupplyResult, error) {
 	result, err := call[GetTokenSupplyResult](ctx, c, "getTokenSupply", withCommitment([]any{mint}, commitment)...)
 	return &result, err

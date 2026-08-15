@@ -43,6 +43,8 @@ type SlotsUpdatesResult struct {
 	Stats *SlotsUpdatesStats `json:"stats,omitempty"`
 }
 
+// SlotsUpdatesStats are the bank statistics attached to frozen slot
+// updates.
 type SlotsUpdatesStats struct {
 	MaxTransactionsPerEntry   uint64 `json:"maxTransactionsPerEntry"`
 	NumFailedTransactions     uint64 `json:"numFailedTransactions"`

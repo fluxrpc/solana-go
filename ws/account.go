@@ -19,6 +19,8 @@ func (c *Client) AccountSubscribe(ctx context.Context, account solana.PublicKey,
 	return c.AccountSubscribeWithOpts(ctx, account, commitment, solana.EncodingBase64)
 }
 
+// AccountSubscribeWithOpts is AccountSubscribe with an explicit data
+// encoding.
 func (c *Client) AccountSubscribeWithOpts(ctx context.Context, account solana.PublicKey, commitment rpc.CommitmentType, encoding solana.EncodingType) (*Subscription[AccountResult], error) {
 	opts := rpc.M{"encoding": encoding}
 	if commitment != "" {
@@ -38,6 +40,8 @@ func (c *Client) ProgramSubscribe(ctx context.Context, program solana.PublicKey,
 	return c.ProgramSubscribeWithOpts(ctx, program, commitment, solana.EncodingBase64, nil)
 }
 
+// ProgramSubscribeWithOpts is ProgramSubscribe with an explicit data
+// encoding and account filters.
 func (c *Client) ProgramSubscribeWithOpts(ctx context.Context, program solana.PublicKey, commitment rpc.CommitmentType, encoding solana.EncodingType, filters []rpc.RPCFilter) (*Subscription[ProgramResult], error) {
 	opts := rpc.M{"encoding": encoding}
 	if commitment != "" {

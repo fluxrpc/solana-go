@@ -8,8 +8,14 @@ import (
 type ConfirmationStatusType string
 
 const (
+	// ConfirmationStatusProcessed means the transaction is in a block the
+	// node has processed, which may still be on a minority fork.
 	ConfirmationStatusProcessed ConfirmationStatusType = "processed"
+	// ConfirmationStatusConfirmed means the block was voted on by a
+	// supermajority of the cluster.
 	ConfirmationStatusConfirmed ConfirmationStatusType = "confirmed"
+	// ConfirmationStatusFinalized means the block has been rooted and
+	// cannot be rolled back.
 	ConfirmationStatusFinalized ConfirmationStatusType = "finalized"
 )
 

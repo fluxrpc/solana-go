@@ -30,9 +30,14 @@ type GenericInstruction struct {
 
 var _ Instruction = (*GenericInstruction)(nil)
 
-func (in *GenericInstruction) ProgramID() PublicKey     { return in.ProgID }
+// ProgramID returns the program the instruction acts on.
+func (in *GenericInstruction) ProgramID() PublicKey { return in.ProgID }
+
+// Accounts returns the accounts the instruction requires.
 func (in *GenericInstruction) Accounts() []*AccountMeta { return in.AccountValues }
-func (in *GenericInstruction) Data() ([]byte, error)    { return in.DataBytes, nil }
+
+// Data returns the binary encoded instruction data.
+func (in *GenericInstruction) Data() ([]byte, error) { return in.DataBytes, nil }
 
 // CompiledInstruction is an instruction inside a compiled transaction
 // message, referencing accounts by their index in the message account list.

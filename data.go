@@ -13,6 +13,8 @@ import (
 // Base58 is a byte slice that is JSON-encoded as a base58 string.
 type Base58 []byte
 
+// MarshalJSON implements json.Marshaler, encoding the bytes as a base58
+// JSON string.
 func (t Base58) MarshalJSON() ([]byte, error) {
 	// Base58 characters never need JSON escaping, so write the quoted string
 	// directly instead of going through json.Marshal.
@@ -23,6 +25,8 @@ func (t Base58) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
+// UnmarshalJSON implements json.Unmarshaler, decoding a base58 JSON
+// string.
 func (t *Base58) UnmarshalJSON(data []byte) (err error) {
 	s, err := jsonUnquote(data)
 	if err != nil {
@@ -36,6 +40,7 @@ func (t *Base58) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
+// String returns the base58 representation of the bytes.
 func (t Base58) String() string {
 	return base58.Encode(t)
 }
@@ -43,6 +48,8 @@ func (t Base58) String() string {
 // Base64 is a byte slice that is JSON-encoded as a standard base64 string.
 type Base64 []byte
 
+// MarshalJSON implements json.Marshaler, encoding the bytes as a standard
+// base64 JSON string.
 func (t Base64) MarshalJSON() ([]byte, error) {
 	// The standard base64 alphabet never needs JSON escaping.
 	buf := make([]byte, base64.StdEncoding.EncodedLen(len(t))+2)
@@ -52,6 +59,8 @@ func (t Base64) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
+// UnmarshalJSON implements json.Unmarshaler, decoding a standard base64
+// JSON string.
 func (t *Base64) UnmarshalJSON(data []byte) (err error) {
 	s, err := jsonUnquote(data)
 	if err != nil {
@@ -65,6 +74,7 @@ func (t *Base64) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
+// String returns the standard base64 representation of the bytes.
 func (t Base64) String() string {
 	return base64.StdEncoding.EncodeToString(t)
 }
@@ -149,6 +159,8 @@ func (t Data) MarshalJSON() ([]byte, error) {
 	}
 }
 
+// UnmarshalJSON implements json.Unmarshaler, decoding the RPC data tuple
+// and decompressing base64+zstd content.
 func (t *Data) UnmarshalJSON(data []byte) error {
 	// Fast path: parse the ["<content>","<encoding>"] tuple in place. Both
 	// halves are escape-free in well-formed RPC output; anything unexpected

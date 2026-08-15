@@ -11,10 +11,15 @@ import (
 type TransactionDetailsType string
 
 const (
-	TransactionDetailsFull       TransactionDetailsType = "full"
+	// TransactionDetailsFull includes full transaction objects.
+	TransactionDetailsFull TransactionDetailsType = "full"
+	// TransactionDetailsSignatures includes only transaction signatures.
 	TransactionDetailsSignatures TransactionDetailsType = "signatures"
-	TransactionDetailsNone       TransactionDetailsType = "none"
-	TransactionDetailsAccounts   TransactionDetailsType = "accounts"
+	// TransactionDetailsNone omits transaction information entirely.
+	TransactionDetailsNone TransactionDetailsType = "none"
+	// TransactionDetailsAccounts includes only the accounts touched by
+	// each transaction, plus its metadata.
+	TransactionDetailsAccounts TransactionDetailsType = "accounts"
 )
 
 // GetBlockOpts is the optional configuration object for the getBlock RPC
@@ -54,7 +59,11 @@ type GetBlockOpts struct {
 }
 
 var (
+	// MaxSupportedTransactionVersion0 is version 0 as an addressable
+	// value for the MaxSupportedTransactionVersion option fields.
 	MaxSupportedTransactionVersion0 uint64 = 0
+	// MaxSupportedTransactionVersion1 is version 1 as an addressable
+	// value for the MaxSupportedTransactionVersion option fields.
 	MaxSupportedTransactionVersion1 uint64 = 1
 )
 

@@ -19,7 +19,11 @@ const (
 )
 
 var (
+	// ErrMaxSeedLengthExceeded is returned when a derivation seed exceeds
+	// MaxSeedLength bytes or more than MaxSeeds seeds are provided.
 	ErrMaxSeedLengthExceeded = errors.New("max seed length exceeded")
+	// ErrNoValidProgramAddress is returned when no bump seed produces an
+	// off-curve address (probability ~2^-255 per seed set).
 	ErrNoValidProgramAddress = errors.New("unable to find a valid program address")
 
 	errAddressOnCurve = errors.New("invalid seeds; address must fall off the curve")

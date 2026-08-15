@@ -8,9 +8,13 @@ import (
 type RewardType string
 
 const (
-	RewardTypeFee     RewardType = "Fee"
-	RewardTypeRent    RewardType = "Rent"
-	RewardTypeVoting  RewardType = "Voting"
+	// RewardTypeFee is a transaction fee reward.
+	RewardTypeFee RewardType = "Fee"
+	// RewardTypeRent is a rent collection reward.
+	RewardTypeRent RewardType = "Rent"
+	// RewardTypeVoting is a voting reward.
+	RewardTypeVoting RewardType = "Voting"
+	// RewardTypeStaking is a staking reward.
 	RewardTypeStaking RewardType = "Staking"
 )
 

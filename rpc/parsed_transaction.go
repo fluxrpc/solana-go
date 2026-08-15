@@ -107,6 +107,9 @@ type InstructionInfoEnvelope struct {
 	asInstructionInfo *InstructionInfo
 }
 
+// MarshalJSON implements json.Marshaler, encoding the envelope back to the
+// form it was decoded from: the plain string when set, otherwise the
+// InstructionInfo object.
 func (wrap InstructionInfoEnvelope) MarshalJSON() ([]byte, error) {
 	if wrap.asString != "" {
 		return sonic.Marshal(wrap.asString)
@@ -114,6 +117,9 @@ func (wrap InstructionInfoEnvelope) MarshalJSON() ([]byte, error) {
 	return sonic.Marshal(wrap.asInstructionInfo)
 }
 
+// UnmarshalJSON implements json.Unmarshaler, accepting either a JSON string
+// (the bare instruction type) or an InstructionInfo object. A null input is
+// ignored.
 func (wrap *InstructionInfoEnvelope) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 || (len(data) == 4 && string(data) == "null") {
 		return nil

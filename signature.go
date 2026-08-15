@@ -12,6 +12,7 @@ const (
 	SignatureLength = 64
 )
 
+// Signature is a 64-byte ed25519 transaction signature.
 type Signature [SignatureLength]byte
 
 // SignatureFromBase58 decodes a base58 string into a Signature.
@@ -39,14 +40,17 @@ func SignatureFromBytes(in []byte) (out Signature) {
 	return
 }
 
+// IsZero reports whether the signature is all zeros (a placeholder).
 func (s Signature) IsZero() bool {
 	return s == Signature{}
 }
 
+// Equals reports whether two signatures are the same.
 func (s Signature) Equals(other Signature) bool {
 	return s == other
 }
 
+// Bytes returns the signature as a byte slice backed by a copy.
 func (s Signature) Bytes() []byte {
 	return s[:]
 }
@@ -62,6 +66,8 @@ func (s Signature) Verify(pubkey PublicKey, msg []byte) bool {
 	return voied25519.VerifyWithOptions(pubkey[:], msg, s[:], verifyOptsStdLib)
 }
 
+// MarshalJSON implements json.Marshaler, encoding the signature as a
+// base58 JSON string.
 func (s Signature) MarshalJSON() ([]byte, error) {
 	// Base58 characters never need JSON escaping, so write the quoted string
 	// directly instead of going through json.Marshal.
@@ -72,6 +78,8 @@ func (s Signature) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
+// UnmarshalJSON implements json.Unmarshaler, decoding a base58 JSON
+// string.
 func (s *Signature) UnmarshalJSON(data []byte) error {
 	str, err := jsonUnquote(data)
 	if err != nil {
@@ -86,6 +94,7 @@ func (s *Signature) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// String returns the base58 representation of the signature.
 func (s Signature) String() string {
 	return base58.Encode64((*[64]byte)(&s))
 }

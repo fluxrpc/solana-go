@@ -38,6 +38,9 @@ func DataBytesOrJSONFromBytes(data []byte) *DataBytesOrJSON {
 	}
 }
 
+// MarshalJSON implements json.Marshaler, encoding json/jsonParsed data as
+// its raw JSON payload (null when absent) and binary data as the
+// ["<content>","<encoding>"] tuple.
 func (dt DataBytesOrJSON) MarshalJSON() ([]byte, error) {
 	if dt.rawDataEncoding == solana.EncodingJSONParsed || dt.rawDataEncoding == solana.EncodingJSON {
 		if dt.asJSON == nil {
@@ -48,6 +51,9 @@ func (dt DataBytesOrJSON) MarshalJSON() ([]byte, error) {
 	return dt.asDecodedBinary.MarshalJSON()
 }
 
+// UnmarshalJSON implements json.Unmarshaler, accepting either the
+// ["<content>","<encoding>"] binary tuple or a jsonParsed object, whose raw
+// bytes are kept for GetRawJSON. A null input is ignored.
 func (wrap *DataBytesOrJSON) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 || string(data) == "null" {
 		return nil

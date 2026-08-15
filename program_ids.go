@@ -61,7 +61,9 @@ var (
 )
 
 var (
-	SolMint    = MustPublicKeyFromBase58("So11111111111111111111111111111111111111111")
+	// SolMint is the native SOL placeholder mint.
+	SolMint = MustPublicKeyFromBase58("So11111111111111111111111111111111111111111")
+	// WrappedSol is the wrapped SOL (wSOL) SPL mint.
 	WrappedSol = MustPublicKeyFromBase58("So11111111111111111111111111111111111111112")
 )
 

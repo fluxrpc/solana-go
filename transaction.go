@@ -8,6 +8,9 @@ import (
 	"github.com/fluxrpc/base58"
 )
 
+// Transaction is a signed Solana transaction: the required signatures
+// followed by the message they sign. It round-trips the binary wire
+// format, base64 and the RPC JSON form.
 type Transaction struct {
 	// A list of base-58 encoded signatures applied to the transaction.
 	// The list is always of length `message.header.numRequiredSignatures` and not empty.
@@ -50,6 +53,8 @@ func TransactionFromBase64(b64 string) (*Transaction, error) {
 	return TransactionFromBytes(data)
 }
 
+// MarshalBinary encodes the transaction in its Solana wire format,
+// padding missing signatures with zeros.
 func (tx *Transaction) MarshalBinary() ([]byte, error) {
 	messageContent, err := tx.Message.MarshalBinary()
 	if err != nil {
@@ -75,6 +80,8 @@ func (tx *Transaction) MarshalBinary() ([]byte, error) {
 	return append(buf, messageContent...), nil
 }
 
+// UnmarshalBinary decodes a transaction from its Solana wire format.
+// See TransactionFromBytes for the buffer-aliasing contract.
 func (tx *Transaction) UnmarshalBinary(data []byte) error {
 	numSigs, n, err := decodeShortvecLen(data)
 	if err != nil {

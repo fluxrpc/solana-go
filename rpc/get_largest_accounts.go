@@ -9,7 +9,11 @@ import (
 type LargestAccountsFilterType string
 
 const (
-	LargestAccountsFilterCirculating    LargestAccountsFilterType = "circulating"
+	// LargestAccountsFilterCirculating restricts results to circulating
+	// accounts.
+	LargestAccountsFilterCirculating LargestAccountsFilterType = "circulating"
+	// LargestAccountsFilterNonCirculating restricts results to
+	// non-circulating accounts.
 	LargestAccountsFilterNonCirculating LargestAccountsFilterType = "nonCirculating"
 )
 

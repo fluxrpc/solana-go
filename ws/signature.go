@@ -25,6 +25,8 @@ type SignatureResultValue struct {
 	Received bool `json:"-"`
 }
 
+// UnmarshalJSON implements json.Unmarshaler, accepting either the status
+// object or the "receivedSignature" marker string.
 func (v *SignatureResultValue) UnmarshalJSON(data []byte) error {
 	if len(data) > 0 && data[0] == '"' {
 		// "receivedSignature"
@@ -41,6 +43,8 @@ func (c *Client) SignatureSubscribe(ctx context.Context, signature solana.Signat
 	return c.SignatureSubscribeWithOpts(ctx, signature, commitment, false)
 }
 
+// SignatureSubscribeWithOpts is SignatureSubscribe with control over
+// received-signature notifications.
 func (c *Client) SignatureSubscribeWithOpts(ctx context.Context, signature solana.Signature, commitment rpc.CommitmentType, enableReceivedNotification bool) (*Subscription[SignatureResult], error) {
 	opts := rpc.M{}
 	if commitment != "" {

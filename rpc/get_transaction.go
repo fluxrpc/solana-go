@@ -43,6 +43,9 @@ type TransactionResultEnvelope struct {
 	asParsedTransaction *solana.Transaction
 }
 
+// MarshalJSON implements json.Marshaler, encoding the transaction back to
+// the form it was decoded from: the JSON object when parsed, otherwise the
+// ["<content>","<encoding>"] binary tuple.
 func (wrap TransactionResultEnvelope) MarshalJSON() ([]byte, error) {
 	if wrap.asParsedTransaction != nil {
 		return sonic.Marshal(wrap.asParsedTransaction)
@@ -50,6 +53,9 @@ func (wrap TransactionResultEnvelope) MarshalJSON() ([]byte, error) {
 	return wrap.asDecodedBinary.MarshalJSON()
 }
 
+// UnmarshalJSON implements json.Unmarshaler, accepting either the
+// ["<content>","<encoding>"] binary tuple or the transaction as a JSON
+// object. A null input is ignored.
 func (wrap *TransactionResultEnvelope) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 || (len(data) == 4 && string(data) == "null") {
 		return nil

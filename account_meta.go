@@ -24,6 +24,7 @@ func (meta *AccountMeta) SIGNER() *AccountMeta {
 	return meta
 }
 
+// NewAccountMeta initializes an AccountMeta with the given roles.
 func NewAccountMeta(pubKey PublicKey, writable bool, signer bool) *AccountMeta {
 	return &AccountMeta{
 		PublicKey:  pubKey,
@@ -32,8 +33,10 @@ func NewAccountMeta(pubKey PublicKey, writable bool, signer bool) *AccountMeta {
 	}
 }
 
+// AccountMetaSlice is a list of AccountMeta with convenience helpers.
 type AccountMetaSlice []*AccountMeta
 
+// Append adds an account to the slice.
 func (slice *AccountMetaSlice) Append(account *AccountMeta) {
 	*slice = append(*slice, account)
 }
@@ -67,6 +70,7 @@ func (slice AccountMetaSlice) GetKeys() []PublicKey {
 	return keys
 }
 
+// Len returns the number of accounts in the slice.
 func (slice AccountMetaSlice) Len() int {
 	return len(slice)
 }
