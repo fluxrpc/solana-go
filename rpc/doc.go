@@ -23,14 +23,22 @@
 // [Client.EnableCache] puts an in-memory sharded account cache in front of
 // GetAccountInfo and GetMultipleAccounts (the WithOpts variants always
 // bypass it). An entry is served when it is streamed (kept current by a
-// realtime feed such as the yellowstone package's PipeAccounts),
-// immutable ([Client.GetAccountInfoImmutable]), or fetched within the
-// freshness window. Writes are slot-ordered, so a late RPC response can
-// never overwrite a newer streamed update. Cache hits return the same
-// *Account to every caller: treat cached accounts as read-only.
+// realtime feed such as the yellowstone package's Pipe), immutable
+// ([Client.GetAccountInfoImmutable]), or fetched within the freshness
+// window. Writes are slot-ordered, so a late RPC response can never
+// overwrite a newer streamed update. Cache hits return the same *Account
+// to every caller: treat cached accounts as read-only.
+//
+// The cache also tracks chain-head data per commitment level: streamed
+// slots, block heights and latest blockhashes serve GetSlot,
+// GetBlockHeight, GetLatestBlockhash and IsBlockhashValid locally. Head
+// data deliberately carries a short freshness window
+// (CacheOptions.HeadFreshFor, default 2s) instead of the accounts'
+// streamed-is-always-fresh rule, so a dead feed can never serve a stale
+// slot or an expiring blockhash.
 //
 //	client.EnableCache()
-//	go yellowstone.PipeAccounts(stream, client) // reads for streamed accounts never hit the network
+//	go yellowstone.Pipe(stream, rpc.CommitmentConfirmed, client)
 //
 // # Streaming getProgramAccounts
 //

@@ -92,15 +92,17 @@ The `rpc.Client` has a built-in account cache — `EnableCache()` and account re
 client := rpc.New(endpoint)
 client.EnableCache() // defaults: 800ms freshness, processed commitment; EnableCacheWithOpts to tune
 
-// Mirror every account you care about into the cache...
-stream, _ := ys.Subscribe(ctx, req) // yellowstone subscription with account filters
-go yellowstone.PipeAccounts(stream, client)
+// Mirror accounts, slots and block metadata into the cache...
+stream, _ := ys.Subscribe(ctx, req) // yellowstone subscription: account filters + Slots() + BlocksMeta()
+go yellowstone.Pipe(stream, rpc.CommitmentConfirmed, client)
 
-// ...and these never hit the network again:
-account, err := client.GetAccountInfo(ctx, watchedKey)
+// ...and these are all served locally:
+account, _ := client.GetAccountInfo(ctx, watchedKey)
+slot, _ := client.GetSlot(ctx, rpc.CommitmentProcessed)
+blockhash, _ := client.GetLatestBlockhash(ctx, rpc.CommitmentConfirmed)
 ```
 
-Entries are served when streamed (the feed keeps them current), immutable (`GetAccountInfoImmutable`, for data that never changes), or fetched within the freshness window. Writes are slot-ordered — a late RPC response can never overwrite a newer streamed update — and `GetMultipleAccounts` fetches only its cache misses, deduplicated, in one call. The `WithOpts` variants always bypass the cache; `DisableCache` reverts to pure passthrough. A janitor evicts idle entries; `CacheStats()` reports hits/misses.
+Entries are served when streamed (the feed keeps them current), immutable (`GetAccountInfoImmutable`, for data that never changes), or fetched within the freshness window. Writes are slot-ordered — a late RPC response can never overwrite a newer streamed update — and `GetMultipleAccounts` fetches only its cache misses, deduplicated, in one call. Chain-head data (slot, block height, latest blockhash per commitment level) is cached too, serving `GetSlot`, `GetBlockHeight`, `GetLatestBlockhash` and `IsBlockhashValid` — with its own short freshness window (2s default) so a dead feed can never serve a stale slot or an expiring blockhash. The `WithOpts` variants always bypass the cache; `DisableCache` reverts to pure passthrough. A janitor evicts idle entries; `CacheStats()` reports hits/misses.
 
 | benchmark | result |
 |---|---:|

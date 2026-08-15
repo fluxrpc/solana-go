@@ -158,9 +158,21 @@ func (c *Client) GetParsedBlock(ctx context.Context, slot uint64, opts *GetBlock
 }
 
 // GetBlockHeight returns the current block height via getBlockHeight.
-// Commitment "" uses the node default.
+// Commitment "" uses the node default (finalized). With the cache enabled
+// and fed by streamed block metadata (see the yellowstone package's
+// Pipe), the height is served locally while fresh.
 func (c *Client) GetBlockHeight(ctx context.Context, commitment CommitmentType) (uint64, error) {
-	return call[uint64](ctx, c, "getBlockHeight", commitmentParam(commitment)...)
+	cache := c.cache.Load()
+	if cache != nil {
+		if height, ok := cache.lookupBlockHeight(commitment); ok {
+			return height, nil
+		}
+	}
+	height, err := call[uint64](ctx, c, "getBlockHeight", commitmentParam(commitment)...)
+	if err == nil && cache != nil {
+		cache.storeBlockHeight(commitment, height)
+	}
+	return height, err
 }
 
 // GetBlockCommitment returns the amount of cluster stake that voted on the
@@ -367,15 +379,36 @@ func (c *Client) RequestAirdrop(ctx context.Context, account solana.PublicKey, l
 
 // GetLatestBlockhash returns the latest blockhash and the last block height
 // at which it will be valid, via getLatestBlockhash. Commitment "" uses the
-// node default.
+// node default (finalized). With the cache enabled and fed by streamed
+// block metadata (see the yellowstone package's Pipe), the blockhash is
+// served locally while fresh.
 func (c *Client) GetLatestBlockhash(ctx context.Context, commitment CommitmentType) (*GetLatestBlockhashResult, error) {
+	cache := c.cache.Load()
+	if cache != nil {
+		if cached, ok := cache.lookupBlockhash(commitment); ok {
+			return cached, nil
+		}
+	}
 	result, err := call[GetLatestBlockhashResult](ctx, c, "getLatestBlockhash", commitmentParam(commitment)...)
+	if err == nil && cache != nil && result.Value != nil {
+		cache.storeBlockhash(commitment, result.Value.Blockhash, result.Value.LastValidBlockHeight, result.Context.Slot)
+	}
 	return &result, err
 }
 
 // IsBlockhashValid reports whether the blockhash is still valid for
-// submitting transactions, via isBlockhashValid.
+// submitting transactions, via isBlockhashValid. With the cache enabled, a
+// hash matching the fresh streamed latest blockhash is confirmed valid
+// locally; anything else asks the network (a cache can prove validity,
+// never invalidity).
 func (c *Client) IsBlockhashValid(ctx context.Context, blockhash solana.Hash, commitment CommitmentType) (*IsValidBlockhashResult, error) {
+	if cache := c.cache.Load(); cache != nil {
+		if cached, ok := cache.lookupBlockhash(commitment); ok && cached.Value.Blockhash == blockhash {
+			result := &IsValidBlockhashResult{Value: true}
+			result.Context.Slot = cached.Context.Slot
+			return result, nil
+		}
+	}
 	result, err := call[IsValidBlockhashResult](ctx, c, "isBlockhashValid", withCommitment([]any{blockhash}, commitment)...)
 	return &result, err
 }
@@ -401,9 +434,21 @@ func (c *Client) GetRecentPrioritizationFees(ctx context.Context, accounts []sol
 // --- Cluster & network ---
 
 // GetSlot returns the slot the node has reached for the given commitment,
-// via getSlot. Commitment "" uses the node default.
+// via getSlot. Commitment "" uses the node default (finalized). With the
+// cache enabled and fed by streamed slot updates (see the yellowstone
+// package's Pipe), the slot is served locally while fresh.
 func (c *Client) GetSlot(ctx context.Context, commitment CommitmentType) (uint64, error) {
-	return call[uint64](ctx, c, "getSlot", commitmentParam(commitment)...)
+	cache := c.cache.Load()
+	if cache != nil {
+		if slot, ok := cache.lookupSlot(commitment); ok {
+			return slot, nil
+		}
+	}
+	slot, err := call[uint64](ctx, c, "getSlot", commitmentParam(commitment)...)
+	if err == nil && cache != nil {
+		cache.storeSlot(commitment, slot)
+	}
+	return slot, err
 }
 
 // GetSlotLeader returns the identity of the current slot leader via

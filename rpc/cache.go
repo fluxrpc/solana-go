@@ -15,7 +15,13 @@ const (
 	DefaultCacheTTL             = time.Hour
 	DefaultCacheJanitorInterval = 5 * time.Minute
 	DefaultCacheShards          = 256
+	DefaultCacheHeadFreshFor    = 2 * time.Second
 )
+
+// maxBlockhashAge is how many blocks a blockhash stays valid for
+// (Solana's MAX_PROCESSING_AGE); getLatestBlockhash reports
+// lastValidBlockHeight = blockHeight + maxBlockhashAge.
+const maxBlockhashAge = 150
 
 // CacheOptions configures the account cache beyond the defaults.
 type CacheOptions struct {
@@ -39,6 +45,13 @@ type CacheOptions struct {
 	// CommitmentProcessed, matching the freshness expectations of streamed
 	// data.
 	Commitment CommitmentType
+
+	// HeadFreshFor is how long streamed chain-head data (slot, block
+	// height, latest blockhash) is served before falling back to the
+	// network — head data must never be served stale if the feed dies, so
+	// unlike streamed accounts it carries a freshness window.
+	// Default DefaultCacheHeadFreshFor.
+	HeadFreshFor time.Duration
 }
 
 // CacheStats is a snapshot of cache effectiveness counters. Hits and
@@ -241,11 +254,17 @@ func (c *Client) cachedGetMultipleAccounts(ctx context.Context, accounts []solan
 
 // accountCache is the sharded slot-aware account cache behind EnableCache.
 type accountCache struct {
-	shards     []cacheShard
-	mask       uint64
-	freshFor   time.Duration
-	ttl        time.Duration
-	commitment CommitmentType
+	shards       []cacheShard
+	mask         uint64
+	freshFor     time.Duration
+	headFreshFor time.Duration
+	ttl          time.Duration
+	commitment   CommitmentType
+
+	// head holds streamed chain-head data per commitment level, indexed by
+	// commitmentIndex.
+	headMu sync.RWMutex
+	head   [3]headState
 
 	hits   atomic.Uint64
 	misses atomic.Uint64
@@ -280,9 +299,10 @@ func (e *cacheEntry) fresh(now int64, freshFor time.Duration) bool {
 
 func newAccountCache(opts *CacheOptions) *accountCache {
 	cache := &accountCache{
-		freshFor:   DefaultCacheFreshFor,
-		ttl:        DefaultCacheTTL,
-		commitment: CommitmentProcessed,
+		freshFor:     DefaultCacheFreshFor,
+		headFreshFor: DefaultCacheHeadFreshFor,
+		ttl:          DefaultCacheTTL,
+		commitment:   CommitmentProcessed,
 	}
 	shards := DefaultCacheShards
 	janitor := DefaultCacheJanitorInterval
@@ -301,6 +321,9 @@ func newAccountCache(opts *CacheOptions) *accountCache {
 		}
 		if opts.Commitment != "" {
 			cache.commitment = opts.Commitment
+		}
+		if opts.HeadFreshFor > 0 {
+			cache.headFreshFor = opts.HeadFreshFor
 		}
 	}
 
@@ -442,5 +465,163 @@ func (ac *accountCache) tidy(ttl time.Duration) {
 			}
 		}
 		s.mu.Unlock()
+	}
+}
+
+// headState is the streamed chain-head data for one commitment level.
+// Every field is guarded by accountCache.headMu; the *At stamps are unix
+// nanos of the last update.
+type headState struct {
+	slot   uint64
+	slotAt int64
+
+	blockHeight   uint64
+	blockHeightAt int64
+
+	blockhash            solana.Hash
+	lastValidBlockHeight uint64
+	blockhashSlot        uint64
+	blockhashAt          int64
+}
+
+// commitmentIndex maps a commitment level to its head slot; the empty
+// commitment maps to finalized, matching the RPC method defaults.
+func commitmentIndex(commitment CommitmentType) int {
+	switch commitment {
+	case CommitmentProcessed:
+		return 0
+	case CommitmentConfirmed:
+		return 1
+	case CommitmentFinalized, "":
+		return 2
+	default:
+		return -1
+	}
+}
+
+func (ac *accountCache) storeSlot(commitment CommitmentType, slot uint64) {
+	idx := commitmentIndex(commitment)
+	if idx < 0 {
+		return
+	}
+	now := time.Now().UnixNano()
+	ac.headMu.Lock()
+	if slot >= ac.head[idx].slot {
+		ac.head[idx].slot = slot
+		ac.head[idx].slotAt = now
+	}
+	ac.headMu.Unlock()
+}
+
+func (ac *accountCache) storeBlockHeight(commitment CommitmentType, height uint64) {
+	idx := commitmentIndex(commitment)
+	if idx < 0 {
+		return
+	}
+	now := time.Now().UnixNano()
+	ac.headMu.Lock()
+	if height >= ac.head[idx].blockHeight {
+		ac.head[idx].blockHeight = height
+		ac.head[idx].blockHeightAt = now
+	}
+	ac.headMu.Unlock()
+}
+
+func (ac *accountCache) storeBlockhash(commitment CommitmentType, hash solana.Hash, lastValidBlockHeight, slot uint64) {
+	idx := commitmentIndex(commitment)
+	if idx < 0 {
+		return
+	}
+	now := time.Now().UnixNano()
+	ac.headMu.Lock()
+	if slot >= ac.head[idx].blockhashSlot {
+		ac.head[idx].blockhash = hash
+		ac.head[idx].lastValidBlockHeight = lastValidBlockHeight
+		ac.head[idx].blockhashSlot = slot
+		ac.head[idx].blockhashAt = now
+	}
+	ac.headMu.Unlock()
+}
+
+func (ac *accountCache) lookupSlot(commitment CommitmentType) (uint64, bool) {
+	idx := commitmentIndex(commitment)
+	if idx < 0 {
+		return 0, false
+	}
+	cutoff := time.Now().UnixNano() - int64(ac.headFreshFor)
+	ac.headMu.RLock()
+	slot, at := ac.head[idx].slot, ac.head[idx].slotAt
+	ac.headMu.RUnlock()
+	if at == 0 || at < cutoff {
+		ac.misses.Add(1)
+		return 0, false
+	}
+	ac.hits.Add(1)
+	return slot, true
+}
+
+func (ac *accountCache) lookupBlockHeight(commitment CommitmentType) (uint64, bool) {
+	idx := commitmentIndex(commitment)
+	if idx < 0 {
+		return 0, false
+	}
+	cutoff := time.Now().UnixNano() - int64(ac.headFreshFor)
+	ac.headMu.RLock()
+	height, at := ac.head[idx].blockHeight, ac.head[idx].blockHeightAt
+	ac.headMu.RUnlock()
+	if at == 0 || at < cutoff {
+		ac.misses.Add(1)
+		return 0, false
+	}
+	ac.hits.Add(1)
+	return height, true
+}
+
+func (ac *accountCache) lookupBlockhash(commitment CommitmentType) (*GetLatestBlockhashResult, bool) {
+	idx := commitmentIndex(commitment)
+	if idx < 0 {
+		return nil, false
+	}
+	cutoff := time.Now().UnixNano() - int64(ac.headFreshFor)
+	ac.headMu.RLock()
+	state := ac.head[idx]
+	ac.headMu.RUnlock()
+	if state.blockhashAt == 0 || state.blockhashAt < cutoff {
+		ac.misses.Add(1)
+		return nil, false
+	}
+	ac.hits.Add(1)
+	result := &GetLatestBlockhashResult{
+		Value: &LatestBlockhashResult{
+			Blockhash:            state.blockhash,
+			LastValidBlockHeight: state.lastValidBlockHeight,
+		},
+	}
+	result.Context.Slot = state.blockhashSlot
+	return result, true
+}
+
+// CacheStoreSlot records a streamed slot for the given commitment level;
+// older slots are ignored. No-op while the cache is disabled.
+func (c *Client) CacheStoreSlot(commitment CommitmentType, slot uint64) {
+	if cache := c.cache.Load(); cache != nil {
+		cache.storeSlot(commitment, slot)
+	}
+}
+
+// CacheStoreBlockHeight records a streamed block height for the given
+// commitment level; lower heights are ignored. No-op while the cache is
+// disabled.
+func (c *Client) CacheStoreBlockHeight(commitment CommitmentType, height uint64) {
+	if cache := c.cache.Load(); cache != nil {
+		cache.storeBlockHeight(commitment, height)
+	}
+}
+
+// CacheStoreLatestBlockhash records a streamed latest blockhash for the
+// given commitment level, slot-ordered. No-op while the cache is disabled.
+func (c *Client) CacheStoreLatestBlockhash(commitment CommitmentType, hash solana.Hash, lastValidBlockHeight, slot uint64) {
+	if cache := c.cache.Load(); cache != nil {
+		cache.storeBlockhash(commitment, hash, lastValidBlockHeight, slot)
 	}
 }

@@ -351,3 +351,54 @@ func BenchmarkCacheGetMultipleAccountsAllHit(b *testing.B) {
 		}
 	}
 }
+
+func TestCacheHeadSlotAndBlockhash(t *testing.T) {
+	_, client := newCountingRPC(t)
+	client.EnableCacheWithOpts(&CacheOptions{JanitorInterval: -1, HeadFreshFor: 40 * time.Millisecond})
+	defer client.DisableCache()
+	ctx := context.Background()
+
+	// Streamed head data serves GetSlot per commitment level.
+	client.CacheStoreSlot(CommitmentProcessed, 500)
+	client.CacheStoreSlot(CommitmentFinalized, 468)
+	slot, err := client.GetSlot(ctx, CommitmentProcessed)
+	if err != nil || slot != 500 {
+		t.Fatalf("processed slot = %d, %v", slot, err)
+	}
+	// Commitment "" maps to finalized.
+	slot, err = client.GetSlot(ctx, "")
+	if err != nil || slot != 468 {
+		t.Fatalf("finalized slot = %d, %v", slot, err)
+	}
+
+	// Older slots never regress the head.
+	client.CacheStoreSlot(CommitmentProcessed, 499)
+	if slot, _ := client.GetSlot(ctx, CommitmentProcessed); slot != 500 {
+		t.Fatalf("slot regressed to %d", slot)
+	}
+
+	// Blockhash + height, slot-ordered.
+	hash := solana.Hash{1, 2, 3}
+	client.CacheStoreLatestBlockhash(CommitmentProcessed, hash, 650, 500)
+	client.CacheStoreBlockHeight(CommitmentProcessed, 500)
+	bh, err := client.GetLatestBlockhash(ctx, CommitmentProcessed)
+	if err != nil || bh.Value.Blockhash != hash || bh.Value.LastValidBlockHeight != 650 {
+		t.Fatalf("blockhash = %+v, %v", bh, err)
+	}
+	height, err := client.GetBlockHeight(ctx, CommitmentProcessed)
+	if err != nil || height != 500 {
+		t.Fatalf("height = %d, %v", height, err)
+	}
+
+	// A matching hash is proven valid locally.
+	valid, err := client.IsBlockhashValid(ctx, hash, CommitmentProcessed)
+	if err != nil || !valid.Value {
+		t.Fatalf("valid = %+v, %v", valid, err)
+	}
+
+	// Head data expires after HeadFreshFor: stale entries are not served.
+	time.Sleep(60 * time.Millisecond)
+	if _, ok := client.cache.Load().lookupSlot(CommitmentProcessed); ok {
+		t.Fatal("stale head slot still served")
+	}
+}
