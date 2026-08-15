@@ -50,13 +50,18 @@ type CacheStats struct {
 	Entries int
 }
 
-// EnableCache turns on the in-memory account cache for this client (see
-// the cache discussion in the package documentation). GetAccountInfo and
-// GetMultipleAccounts are then served from cache whenever possible; the
-// WithOpts variants always bypass it, since cached entries hold the full
-// base64 account shape. Passing nil uses the defaults. Enabling replaces
-// any previous cache and its contents.
-func (c *Client) EnableCache(opts *CacheOptions) {
+// EnableCache turns on the in-memory account cache for this client with
+// default settings (see the cache discussion in the package
+// documentation). GetAccountInfo and GetMultipleAccounts are then served
+// from cache whenever possible; the WithOpts variants always bypass it,
+// since cached entries hold the full base64 account shape. Enabling
+// replaces any previous cache and its contents.
+func (c *Client) EnableCache() {
+	c.EnableCacheWithOpts(nil)
+}
+
+// EnableCacheWithOpts is EnableCache with explicit cache settings.
+func (c *Client) EnableCacheWithOpts(opts *CacheOptions) {
 	newCacheState := newAccountCache(opts)
 	if old := c.cache.Swap(newCacheState); old != nil {
 		old.stop()

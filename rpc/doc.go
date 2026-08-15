@@ -29,7 +29,7 @@
 // never overwrite a newer streamed update. Cache hits return the same
 // *Account to every caller: treat cached accounts as read-only.
 //
-//	client.EnableCache(nil)
+//	client.EnableCache()
 //	go yellowstone.PipeAccounts(stream, client) // reads for streamed accounts never hit the network
 //
 // # Streaming getProgramAccounts

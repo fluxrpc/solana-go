@@ -104,7 +104,7 @@ func cacheKey(b byte) solana.PublicKey {
 func TestCacheGetAccountInfo(t *testing.T) {
 	fake, client := newCountingRPC(t)
 	fake.accounts[cacheKey(1)] = 111
-	client.EnableCache(nil)
+	client.EnableCache()
 	defer client.DisableCache()
 	ctx := context.Background()
 
@@ -141,7 +141,7 @@ func TestCacheDisabledPassthrough(t *testing.T) {
 	}
 
 	// Toggling on and off again returns to passthrough.
-	client.EnableCache(nil)
+	client.EnableCache()
 	client.GetAccountInfo(ctx, cacheKey(1)) // miss -> fetch -> cache
 	client.GetAccountInfo(ctx, cacheKey(1)) // hit
 	client.DisableCache()
@@ -154,7 +154,7 @@ func TestCacheDisabledPassthrough(t *testing.T) {
 func TestCacheFreshnessExpiry(t *testing.T) {
 	fake, client := newCountingRPC(t)
 	fake.accounts[cacheKey(1)] = 111
-	client.EnableCache(&CacheOptions{FreshFor: 30 * time.Millisecond, JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{FreshFor: 30 * time.Millisecond, JanitorInterval: -1})
 	defer client.DisableCache()
 	ctx := context.Background()
 
@@ -170,7 +170,7 @@ func TestCacheFreshnessExpiry(t *testing.T) {
 func TestCacheImmutableNeverExpires(t *testing.T) {
 	fake, client := newCountingRPC(t)
 	fake.accounts[cacheKey(1)] = 111
-	client.EnableCache(&CacheOptions{FreshFor: time.Millisecond, JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{FreshFor: time.Millisecond, JanitorInterval: -1})
 	defer client.DisableCache()
 	ctx := context.Background()
 
@@ -185,7 +185,7 @@ func TestCacheImmutableNeverExpires(t *testing.T) {
 
 func TestCacheStreamedSlotOrdering(t *testing.T) {
 	_, client := newCountingRPC(t)
-	client.EnableCache(&CacheOptions{JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{JanitorInterval: -1})
 	defer client.DisableCache()
 	ctx := context.Background()
 
@@ -219,7 +219,7 @@ func TestCacheGetMultipleAccountsPartialHit(t *testing.T) {
 	fake, client := newCountingRPC(t)
 	fake.accounts[cacheKey(1)] = 1
 	fake.accounts[cacheKey(2)] = 2
-	client.EnableCache(&CacheOptions{JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{JanitorInterval: -1})
 	defer client.DisableCache()
 	ctx := context.Background()
 
@@ -260,7 +260,7 @@ func TestCacheGetMultipleAccountsPartialHit(t *testing.T) {
 
 func TestCacheNotFoundNotCached(t *testing.T) {
 	fake, client := newCountingRPC(t)
-	client.EnableCache(&CacheOptions{JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{JanitorInterval: -1})
 	defer client.DisableCache()
 	ctx := context.Background()
 
@@ -277,7 +277,7 @@ func TestCacheNotFoundNotCached(t *testing.T) {
 
 func TestCacheClearAndTidy(t *testing.T) {
 	_, client := newCountingRPC(t)
-	client.EnableCache(&CacheOptions{JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{JanitorInterval: -1})
 	defer client.DisableCache()
 
 	client.CacheStoreStreamed(cacheKey(1), &Account{Lamports: 1}, 1)
@@ -303,7 +303,7 @@ var benchmarkCachedAccount *GetAccountInfoResult
 
 func BenchmarkCacheGetAccountInfoHit(b *testing.B) {
 	client := New("http://unused")
-	client.EnableCache(&CacheOptions{JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{JanitorInterval: -1})
 	defer client.DisableCache()
 	client.CacheStoreStreamed(cacheKey(1), &Account{Lamports: 1}, 1)
 	ctx := context.Background()
@@ -320,7 +320,7 @@ func BenchmarkCacheGetAccountInfoHit(b *testing.B) {
 
 func BenchmarkCacheStoreStreamed(b *testing.B) {
 	client := New("http://unused")
-	client.EnableCache(&CacheOptions{JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{JanitorInterval: -1})
 	defer client.DisableCache()
 	account := &Account{Lamports: 1}
 
@@ -334,7 +334,7 @@ func BenchmarkCacheStoreStreamed(b *testing.B) {
 
 func BenchmarkCacheGetMultipleAccountsAllHit(b *testing.B) {
 	client := New("http://unused")
-	client.EnableCache(&CacheOptions{JanitorInterval: -1})
+	client.EnableCacheWithOpts(&CacheOptions{JanitorInterval: -1})
 	defer client.DisableCache()
 	keys := make([]solana.PublicKey, 100)
 	for i := range keys {

@@ -86,11 +86,11 @@ Live test: `YELLOWSTONE_ENDPOINT=... [YELLOWSTONE_TOKEN=...] go test ./yellowsto
 
 ## Cached RPC
 
-The `rpc.Client` has a built-in account cache — `EnableCache(nil)` and account reads are served from an in-memory sharded cache, with realtime Yellowstone updates piped straight into it so reads for locally-tracked accounts never leave the process:
+The `rpc.Client` has a built-in account cache — `EnableCache()` and account reads are served from an in-memory sharded cache, with realtime Yellowstone updates piped straight into it so reads for locally-tracked accounts never leave the process:
 
 ```go
 client := rpc.New(endpoint)
-client.EnableCache(nil) // defaults: 800ms freshness, processed commitment
+client.EnableCache() // defaults: 800ms freshness, processed commitment; EnableCacheWithOpts to tune
 
 // Mirror every account you care about into the cache...
 stream, _ := ys.Subscribe(ctx, req) // yellowstone subscription with account filters
