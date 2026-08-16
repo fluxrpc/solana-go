@@ -36,7 +36,7 @@ go run golang.org/x/pkgsite/cmd/pkgsite@latest -open .
 | `Base58` / `Base64` | `data.go` | byte slices with base58/base64 JSON encoding |
 | `AccountMeta` | `account_meta.go` | account role in an instruction |
 | `Instruction` / `CompiledInstruction` | `instruction.go` | instruction interface + compiled form |
-| `PrivateKey` | `private_key.go` | 64-byte ed25519 keypair, `Sign` |
+| `PrivateKey` | `private_key.go` | 64-byte ed25519 keypair, `Sign`, seed/`solana-keygen` file loading |
 | `Message` | `message.go` | legacy + v0 messages, binary & JSON |
 | `Transaction` | `transaction.go` | signatures + message, binary & JSON |
 | `EncodingType` / `Data` | `encoding.go` / `data.go` | RPC data encodings and the `["<content>","<encoding>"]` tuple |
@@ -180,8 +180,9 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Sign | 12832 | 23765 | 1.9x | 64 | 64 | 1 | 1 |
-| PublicKey | 2.80 | 11020 | 3932.9x | 0 | 0 | 0 | 0 |
+| Sign | 12411 | 21102 | 1.7x | 64 | 64 | 1 | 1 |
+| PublicKey | 2.46 | 10053 | 4086.6x | 0 | 0 | 0 | 0 |
+| FromKeygenFile | 10324 | 11984 | 1.2x | 64 | 360 | 1 | 67 |
 
 ### PublicKey
 
@@ -291,12 +292,16 @@ Message_UnmarshalJSON
   gagl  ████████████████████████████████████████ 5917 ns/op
 
 PrivateKey_Sign
-  flux  ██████████████████████                   12832 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 23765 ns/op
+  flux  ████████████████████████                 12411 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 21102 ns/op
 
 PrivateKey_PublicKey
-  flux  █                                        2.80 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 11020 ns/op
+  flux  █                                        2.46 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 10053 ns/op
+
+PrivateKey_FromKeygenFile
+  flux  ██████████████████████████████████       10324 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 11984 ns/op
 
 PublicKey_String
   flux  ████████████████████████                 71.40 ns/op  <-- faster

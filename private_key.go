@@ -1,9 +1,12 @@
 package solana_go
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/fluxrpc/base58"
 	voied25519 "github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
@@ -44,9 +47,120 @@ func MustPrivateKeyFromBase58(in string) PrivateKey {
 	return out
 }
 
+// PrivateKeyFromSeed derives the keypair deterministically from a 32-byte
+// ed25519 seed.
+func PrivateKeyFromSeed(seed []byte) (PrivateKey, error) {
+	if len(seed) != ed25519.SeedSize {
+		return nil, fmt.Errorf("invalid seed size, expected %d, got %d", ed25519.SeedSize, len(seed))
+	}
+	return PrivateKey(voied25519.NewKeyFromSeed(seed)), nil
+}
+
+// PrivateKeyFromSolanaKeygenFile loads a keypair from a file in the JSON
+// byte-array format written by `solana-keygen new` (e.g. `[12,34,...]`,
+// 64 values).
+func PrivateKeyFromSolanaKeygenFile(file string) (PrivateKey, error) {
+	content, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("read keygen file: %w", err)
+	}
+	key, err := PrivateKeyFromSolanaKeygenFileBytes(content)
+	if err != nil {
+		return nil, fmt.Errorf("keygen file %s: %w", file, err)
+	}
+	return key, nil
+}
+
+// PrivateKeyFromSolanaKeygenFileBytes parses the content of a solana-keygen
+// keypair file: a JSON array of 64 byte values. The key is validated with
+// Validate before being returned.
+func PrivateKeyFromSolanaKeygenFileBytes(content []byte) (PrivateKey, error) {
+	pos := 0
+	skipSpace := func() {
+		for pos < len(content) {
+			switch content[pos] {
+			case ' ', '\t', '\n', '\r':
+				pos++
+			default:
+				return
+			}
+		}
+	}
+
+	skipSpace()
+	if pos == len(content) || content[pos] != '[' {
+		return nil, errors.New("expected a JSON array of byte values")
+	}
+	pos++
+
+	key := make(PrivateKey, 0, ed25519.PrivateKeySize)
+	skipSpace()
+	if pos < len(content) && content[pos] == ']' {
+		pos++
+	} else {
+		for {
+			skipSpace()
+			start := pos
+			value := 0
+			for pos < len(content) && content[pos] >= '0' && content[pos] <= '9' {
+				value = value*10 + int(content[pos]-'0')
+				if value > 255 {
+					return nil, fmt.Errorf("byte value out of range at offset %d", start)
+				}
+				pos++
+			}
+			if pos == start {
+				return nil, fmt.Errorf("expected a byte value at offset %d", pos)
+			}
+			key = append(key, byte(value))
+			skipSpace()
+			if pos == len(content) {
+				return nil, errors.New("unexpected end of input")
+			}
+			if content[pos] == ',' {
+				pos++
+				continue
+			}
+			if content[pos] == ']' {
+				pos++
+				break
+			}
+			return nil, fmt.Errorf("unexpected character %q at offset %d", content[pos], pos)
+		}
+	}
+	skipSpace()
+	if pos != len(content) {
+		return nil, fmt.Errorf("trailing data at offset %d", pos)
+	}
+
+	if len(key) != ed25519.PrivateKeySize {
+		return nil, fmt.Errorf("invalid private key length %d, expected %d", len(key), ed25519.PrivateKeySize)
+	}
+	if err := key.Validate(); err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
 // IsValid reports whether the private key has the expected size.
 func (k PrivateKey) IsValid() bool {
 	return len(k) == ed25519.PrivateKeySize
+}
+
+// Validate checks that the key is 64 bytes and that its public-key half
+// matches the key derived from its seed half.
+func (k PrivateKey) Validate() error {
+	if len(k) != ed25519.PrivateKeySize {
+		return fmt.Errorf("invalid private key size, expected %d, got %d", ed25519.PrivateKeySize, len(k))
+	}
+	derived := voied25519.NewKeyFromSeed(k[:ed25519.SeedSize])
+	if !bytes.Equal(derived, []byte(k)) {
+		if !IsOnCurve(k[ed25519.SeedSize:]) {
+			return errors.New("invalid private key: seed/public key mismatch (public key half is not on the ed25519 curve)")
+		}
+		return errors.New("invalid private key: seed/public key mismatch")
+	}
+	return nil
 }
 
 // PublicKey returns the public key half of the keypair.
