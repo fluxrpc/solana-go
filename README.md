@@ -77,7 +77,20 @@ _, err = tx.Sign(func(pub solana.PublicKey) *solana.PrivateKey {
 sig, err := client.SendTransaction(ctx, tx)
 ```
 
-`NewTransaction` compiles instructions into a legacy message, or a v0 message when address lookup tables are supplied via `solana.TransactionAddressTables`. Track confirmation with `GetSignatureStatuses` or a `ws.SignatureSubscribe` subscription.
+`NewTransaction` compiles instructions into a legacy message, or a v0 message when address lookup tables are supplied via `solana.TransactionAddressTables`. To send and wait for confirmation in one call:
+
+```go
+import "github.com/fluxrpc/solana-go/confirm"
+
+// With a ws client the signature subscription is armed BEFORE the send,
+// so the confirmation can never be missed; pass nil to poll over RPC.
+sig, err := confirm.SendAndConfirm(ctx, client, wsClient, tx)
+
+var execErr *confirm.ExecutionError
+if errors.As(err, &execErr) {
+	// Confirmed on chain, but an instruction failed; execErr.Err has the cause.
+}
+```
 
 ### Read accounts
 
@@ -166,6 +179,7 @@ Entries are served when streamed (the feed keeps them current), immutable (`GetA
 | [`solana-go`](https://pkg.go.dev/github.com/fluxrpc/solana-go) | Core chain types, codecs, keys and signing, transaction building, PDA derivation |
 | [`solana-go/rpc`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpc) | JSON-RPC HTTP client + every RPC request/response type, streaming gPA, account cache |
 | [`solana-go/ws`](https://pkg.go.dev/github.com/fluxrpc/solana-go/ws) | WebSocket pubsub subscriptions |
+| [`solana-go/confirm`](https://pkg.go.dev/github.com/fluxrpc/solana-go/confirm) | Send-and-confirm: race-free WebSocket confirmation, RPC polling fallback |
 | [`solana-go/yellowstone`](https://pkg.go.dev/github.com/fluxrpc/solana-go/yellowstone) | gRPC Geyser client (separate nested module) |
 
 ## Feature overview
@@ -213,6 +227,12 @@ Notification pipeline throughput (20k account notifications flooded over a local
 | allocations | 15.2 | 30.0 | 2.0x fewer |
 
 Parsed-block notifications (2k jsonParsed block payloads, 3 parsed transactions each, `BenchmarkWs_ParsedBlockNotifications`): 21.8 µs vs 79.4 µs per notification — 3.6x faster, 2.2x fewer allocations. Under the same flood the upstream client aborts once its fixed 200-slot channel fills ("reached channel max capacity"); this client's drop-and-count backpressure keeps the socket alive.
+
+### Send and confirm
+
+The [`confirm`](confirm/) package sends a transaction and waits for it to reach a commitment. With a WebSocket client, the signature subscription is registered **before** the transaction is sent, so a fast confirmation can never race the subscription — the upstream flow subscribes after sending and, if it loses that race, waits for the full timeout. Signature subscriptions are single-shot, so after the terminal notification only local state is dropped (`ws.Subscription.Release`) instead of an unsubscribe round trip. Without a WebSocket client, confirmation is polled over `getSignatureStatuses` with commitment-aware status ranking.
+
+On a loopback end-to-end benchmark (`BenchmarkConfirm_SendAndConfirm`: connect, subscribe, send, notify) the pipeline runs 664 µs vs upstream's 567 µs with 18% fewer allocations — the difference is exactly the subscribe-ack round trip that buys race-freedom, a cost that disappears against real confirmation latencies (hundreds of ms) while the race it removes costs upstream a full timeout when lost.
 
 ### Yellowstone (gRPC Geyser)
 
