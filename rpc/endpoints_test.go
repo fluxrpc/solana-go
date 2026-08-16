@@ -11,10 +11,10 @@ func TestClusterEndpoints(t *testing.T) {
 		rpc     string
 		ws      string
 	}{
-		{MainNetBeta, "mainnet-beta", "https://api.mainnet-beta.solana.com", "wss://api.mainnet-beta.solana.com"},
-		{TestNet, "testnet", "https://api.testnet.solana.com", "wss://api.testnet.solana.com"},
-		{DevNet, "devnet", "https://api.devnet.solana.com", "wss://api.devnet.solana.com"},
-		{LocalNet, "localnet", "http://127.0.0.1:8899", "ws://127.0.0.1:8900"},
+		{MainnetBeta, "mainnet-beta", "https://api.mainnet-beta.solana.com", "wss://api.mainnet-beta.solana.com"},
+		{Testnet, "testnet", "https://api.testnet.solana.com", "wss://api.testnet.solana.com"},
+		{Devnet, "devnet", "https://api.devnet.solana.com", "wss://api.devnet.solana.com"},
+		{Localnet, "localnet", "http://127.0.0.1:8899", "ws://127.0.0.1:8900"},
 	}
 	for _, tc := range cases {
 		if tc.cluster.Name != tc.name || tc.cluster.RPC != tc.rpc || tc.cluster.WS != tc.ws {

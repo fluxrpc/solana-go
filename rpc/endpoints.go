@@ -14,40 +14,40 @@ type Cluster struct {
 
 // The well-known public clusters.
 var (
-	MainNetBeta = Cluster{
+	MainnetBeta = Cluster{
 		Name: "mainnet-beta",
-		RPC:  MainNetBeta_RPC,
-		WS:   MainNetBeta_WS,
+		RPC:  MainnetBetaRPC,
+		WS:   MainnetBetaWS,
 	}
-	TestNet = Cluster{
+	Testnet = Cluster{
 		Name: "testnet",
-		RPC:  TestNet_RPC,
-		WS:   TestNet_WS,
+		RPC:  TestnetRPC,
+		WS:   TestnetWS,
 	}
-	DevNet = Cluster{
+	Devnet = Cluster{
 		Name: "devnet",
-		RPC:  DevNet_RPC,
-		WS:   DevNet_WS,
+		RPC:  DevnetRPC,
+		WS:   DevnetWS,
 	}
-	LocalNet = Cluster{
+	Localnet = Cluster{
 		Name: "localnet",
-		RPC:  LocalNet_RPC,
-		WS:   LocalNet_WS,
+		RPC:  LocalnetRPC,
+		WS:   LocalnetWS,
 	}
 )
 
 // Public cluster HTTP RPC endpoints.
 const (
-	MainNetBeta_RPC = "https://api.mainnet-beta.solana.com"
-	TestNet_RPC     = "https://api.testnet.solana.com"
-	DevNet_RPC      = "https://api.devnet.solana.com"
-	LocalNet_RPC    = "http://127.0.0.1:8899"
+	MainnetBetaRPC = "https://api.mainnet-beta.solana.com"
+	TestnetRPC     = "https://api.testnet.solana.com"
+	DevnetRPC      = "https://api.devnet.solana.com"
+	LocalnetRPC    = "http://127.0.0.1:8899"
 )
 
 // Public cluster WebSocket pubsub endpoints.
 const (
-	MainNetBeta_WS = "wss://api.mainnet-beta.solana.com"
-	TestNet_WS     = "wss://api.testnet.solana.com"
-	DevNet_WS      = "wss://api.devnet.solana.com"
-	LocalNet_WS    = "ws://127.0.0.1:8900"
+	MainnetBetaWS = "wss://api.mainnet-beta.solana.com"
+	TestnetWS     = "wss://api.testnet.solana.com"
+	DevnetWS      = "wss://api.devnet.solana.com"
+	LocalnetWS    = "ws://127.0.0.1:8900"
 )
