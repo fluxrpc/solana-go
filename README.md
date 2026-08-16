@@ -1,91 +1,145 @@
 # solana-go
 
-Optimized Golang SDK for Solana.
-
-A lean port of the core [solana-go](https://github.com/gagliardetto/solana-go) types, rebuilt for performance:
+An optimized Go SDK for Solana: core chain types, a JSON-RPC HTTP client covering the full RPC spec, WebSocket pubsub subscriptions, and a Yellowstone gRPC Geyser client — built for performance with a deliberately small dependency tree.
 
 - Base58 encoding/decoding via [fluxrpc/base58](https://github.com/fluxrpc/base58) (SIMD-accelerated, fixed-size fast paths for 32/64-byte values).
-- Zero-allocation-conscious JSON marshaling (direct quoted-buffer writes, no `json.Marshal` round trips for base58/base64 strings).
-- Single-allocation binary (wire format) encoding with exact size precomputation.
+- Zero-allocation-conscious JSON marshaling (direct quoted-buffer writes, no `json.Marshal` round trips for base58/base64 strings); decoding via [bytedance/sonic](https://github.com/bytedance/sonic).
+- Single-allocation binary (wire format) encoding with exact size precomputation; zero-allocation PDA derivation.
 - Only supported serializations: `String`, `Bytes` (binary wire format) and JSON. No BSON, no text marshalers, no kitchen sink.
 - Five dependencies, each earning its keep: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify), `klauspost/compress` (base64+zstd account data), `gobwas/ws` (raw WebSocket frames). The gRPC stack lives only in the nested `yellowstone` module.
 
-## Documentation
+Full Solana spec compliance is a hard requirement: every RPC method and response field, all nine pubsub subscriptions, legacy and v0 transactions, base64+zstd account data.
 
-Full API documentation is godoc-first: every exported symbol is documented, each package carries an architectural overview in its `doc.go`, and runnable examples appear under Examples on [pkg.go.dev](https://pkg.go.dev/github.com/fluxrpc/solana-go). Browse locally with:
+## Install
 
 ```bash
-go doc github.com/fluxrpc/solana-go            # or any symbol, e.g. go doc rpc.Client
-go run golang.org/x/pkgsite/cmd/pkgsite@latest -open .
+go get github.com/fluxrpc/solana-go
+go get github.com/fluxrpc/solana-go/yellowstone   # optional; nested module, brings in gRPC
 ```
 
-| Package | Purpose |
-|---|---|
-| [`solana-go`](https://pkg.go.dev/github.com/fluxrpc/solana-go) | Core chain types, codecs, signing, PDA derivation |
-| [`solana-go/rpc`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpc) | JSON-RPC HTTP client + every RPC request/response type, streaming gPA |
-| [`solana-go/ws`](https://pkg.go.dev/github.com/fluxrpc/solana-go/ws) | WebSocket pubsub subscriptions |
-| [`solana-go/yellowstone`](https://pkg.go.dev/github.com/fluxrpc/solana-go/yellowstone) | gRPC Geyser client (separate nested module) |
+The root package is named `solana_go`; import it under an alias:
 
-## Types
+```go
+import (
+	solana "github.com/fluxrpc/solana-go"
+	"github.com/fluxrpc/solana-go/rpc"
+)
+```
 
-| Type | File | Notes |
-|---|---|---|
-| `PublicKey` | `public_key.go` | 32-byte account key |
-| `Signature` | `signature.go` | 64-byte ed25519 signature, `Verify` |
-| `Hash` | `hash.go` | 32-byte blockhash |
-| `Base58` / `Base64` | `data.go` | byte slices with base58/base64 JSON encoding |
-| `AccountMeta` | `account_meta.go` | account role in an instruction |
-| `Instruction` / `CompiledInstruction` | `instruction.go` | instruction interface + compiled form |
-| `PrivateKey` | `private_key.go` | 64-byte ed25519 keypair, `Sign`, seed/`solana-keygen` file loading |
-| `Message` | `message.go` | legacy + v0 messages, binary & JSON |
-| `Transaction` | `transaction.go` | signatures + message, binary & JSON |
-| `EncodingType` / `Data` | `encoding.go` / `data.go` | RPC data encodings and the `["<content>","<encoding>"]` tuple |
-| `NewTransaction` / `TransactionBuilder` | `transaction_builder.go` | compiles instructions into legacy/v0 messages (fee payer, dedup, lookup tables) |
+## Quickstart
 
-## RPC types
+### Keys
 
-The [`rpc`](rpc/) package ports every request/response type of the upstream `rpc` package — one file per method (`rpc/get_block.go`, `rpc/get_transaction.go`, …) plus the shared response types (`TransactionMeta`, `Account`, `DataBytesOrJSON`, the `Parsed*` family). Client call machinery, BSON and binary-codec baggage are cut; the types are plain JSON-tagged structs with custom codecs only where the wire format demands it (`DataBytesOrJSON`, `TransactionVersion`, envelopes, pubkey-keyed maps).
+```go
+// Generate, or load from the formats solana-keygen and wallets use.
+key, _ := solana.NewRandomPrivateKey()
+key, err := solana.PrivateKeyFromSolanaKeygenFile("id.json")
+key, err = solana.PrivateKeyFromBase58("...")
+key, err = solana.PrivateKeyFromSeed(seed) // 32-byte ed25519 seed
 
-They work with any JSON library; decode responses with `sonic.Unmarshal` to get the numbers below (upstream's client decodes with `goccy/go-json` — that's what it is benchmarked with).
+fmt.Println(key.PublicKey()) // reads the stored public half, ~3ns
 
-For `getProgramAccounts`, `rpc.StreamProgramAccounts(body, fn)` decodes accounts incrementally off the response body as it downloads — memory stays bounded by the largest account instead of the whole response, and decoding overlaps the transfer (built for constant-stream delivery such as fluxrpc's). With a paced-delivery benchmark (2000 accounts arriving as 32KB chunks every 250µs, `BenchmarkStreamProgramAccountsNetwork` vs `BenchmarkBufferedProgramAccountsNetwork`):
+// Zero-allocation PDA derivation.
+pda, bump, err := solana.FindProgramAddress(seeds, programID)
+ata, bump, err := solana.FindAssociatedTokenAddress(wallet, usdcMint)
+```
 
-| | streamed | buffered (read all, then decode) | |
-|---|---:|---:|---|
-| total wall clock | 4.0 ms | 6.2 ms | 1.5x faster |
-| time to first account | 0.09 ms | 6.2 ms | ~68x faster |
-| memory per response | 686 KB | 2.1 MB | 3.0x less |
-| allocations | 4.3 k | 14.1 k | 3.3x fewer |
+### Build, sign and send a transaction
 
-Live-endpoint conformance tests for every method run with `RPC_URL=... go test ./rpc/ -run TestLiveRPC`.
+```go
+client := rpc.New("https://api.mainnet-beta.solana.com")
+recent, err := client.GetLatestBlockhash(ctx, rpc.CommitmentFinalized)
 
-## WebSocket subscriptions
+// System-program transfer: u32 instruction index 2, u64 lamports, little-endian.
+data := make([]byte, 12)
+binary.LittleEndian.PutUint32(data, 2)
+binary.LittleEndian.PutUint64(data[4:], 1_000_000)
 
-The [`ws`](ws/) package covers all nine pubsub subscriptions (`accountSubscribe`, `programSubscribe`, `logsSubscribe`, `signatureSubscribe`, `slotSubscribe`, `slotsUpdatesSubscribe`, `rootSubscribe`, `voteSubscribe`, `blockSubscribe`) over [gobwas/ws](https://github.com/gobwas/ws) raw frames. One read loop reuses a single message buffer and routes exact-size payload copies to buffered per-subscription channels; typed decoding happens on the consumer's goroutine via generic `Subscription[T]`, so a slow consumer drops (and counts) its own notifications instead of stalling the socket. Subscription channels are registered inside the read loop's ack handling, so notifications arriving immediately behind the subscribe ack are never lost.
+ix := solana.NewInstruction(
+	solana.SystemProgramID,
+	solana.AccountMetaSlice{
+		solana.Meta(payer.PublicKey()).SIGNER().WRITE(),
+		solana.Meta(recipient).WRITE(),
+	},
+	data,
+)
 
-Notification pipeline throughput (20k account notifications flooded over a local socket, `BenchmarkWs_AccountNotifications`):
+tx, err := solana.NewTransaction([]solana.Instruction{ix}, recent.Value.Blockhash,
+	solana.TransactionPayer(payer.PublicKey()))
 
-| per notification | fluxrpc `ws` | upstream `rpc/ws` (gorilla) | |
-|---|---:|---:|---|
-| latency | 4.97 µs | 7.23 µs | 1.45x faster |
-| memory | 1.66 KB | 2.20 KB | 1.3x less |
-| allocations | 15.2 | 30.0 | 2.0x fewer |
+_, err = tx.Sign(func(pub solana.PublicKey) *solana.PrivateKey {
+	if pub == payer.PublicKey() {
+		return &payer
+	}
+	return nil
+})
 
-Live test: `WS_URL=wss://... go test ./ws/ -run TestLive`.
+sig, err := client.SendTransaction(ctx, tx)
+```
 
-## Yellowstone (gRPC Geyser)
+`NewTransaction` compiles instructions into a legacy message, or a v0 message when address lookup tables are supplied via `solana.TransactionAddressTables`. Track confirmation with `GetSignatureStatuses` or a `ws.SignatureSubscribe` subscription.
 
-The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go get github.com/fluxrpc/solana-go/yellowstone`), so its gRPC/protobuf dependency tree never touches the core SDK. It wraps the Geyser protocol: `Connect` with `x-token` auth, TLS auto-detection, tuned keepalive and a 1GB receive limit; `Subscribe` with live filter updates and thin filter builders; unary `Ping`/`GetVersion`/`GetSlot`/`GetLatestBlockhash`/`GetBlockHeight`/`IsBlockhashValid`; and allocation-light converters from geyser protobuf into this SDK's types — converted transactions re-serialize byte-identical and pass signature verification.
+### Read accounts
 
-| benchmark (bufconn, i7-9700K) | result |
-|---|---:|
-| subscribe throughput (incl. account conversion) | ~600k updates/sec |
-| `ConvertTransaction` | 375 ns/op, 7 allocs |
-| `ConvertAccount` | 55 ns/op, 1 alloc |
+```go
+client := rpc.New("https://your-endpoint")
+client.SetHeader("X-Api-Key", "...") // if the endpoint is authenticated
 
-Live test: `YELLOWSTONE_ENDPOINT=... [YELLOWSTONE_TOKEN=...] go test ./yellowstone/ -run TestLive`.
+account, err := client.GetAccountInfo(ctx, ata) // rpc.ErrNotFound if it doesn't exist
+fmt.Println(account.Value.Owner, len(account.GetBinary()))
 
-## Cached RPC
+accounts, err := client.GetMultipleAccounts(ctx, key1, key2, key3)
+slot, err := client.GetSlot(ctx, rpc.CommitmentFinalized)
+```
+
+Every RPC method is available; single-item lookups return `rpc.ErrNotFound` on a null result, and each method has a `WithOpts` variant exposing the full option set (the plain variants default `maxSupportedTransactionVersion=0` so versioned transactions decode out of the box).
+
+### Streaming getProgramAccounts
+
+```go
+// Accounts are decoded and delivered while the response body is still
+// downloading; memory stays bounded by the largest single account.
+_, err := client.GetProgramAccountsStream(ctx, program, nil, func(ka *rpc.KeyedAccount) error {
+	process(ka)
+	return nil
+})
+```
+
+### WebSocket subscriptions
+
+```go
+client, err := ws.Connect(ctx, "wss://your-endpoint")
+sub, err := client.AccountSubscribe(ctx, account, rpc.CommitmentConfirmed)
+defer sub.Unsubscribe(context.Background())
+for {
+	update, err := sub.Recv(ctx)
+	if err != nil {
+		break // connection died or unsubscribed; client.Err() has the cause
+	}
+	process(update)
+}
+```
+
+All nine pubsub subscriptions are covered: account, program, logs, signature, slot, slotsUpdates, root, vote, block.
+
+### Yellowstone (gRPC Geyser)
+
+```go
+client, err := yellowstone.Connect(ctx, "https://your-geyser:443",
+	yellowstone.WithToken("..."))
+
+req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED)
+yellowstone.AddAccounts(req, "usdc", yellowstone.AccountsByOwner(tokenProgram.String()))
+stream, err := client.Subscribe(ctx, req)
+for {
+	update, err := stream.Recv()
+	...
+}
+```
+
+`ConvertTransaction` and `ConvertAccount` map geyser protobuf payloads into this SDK's types; converted transactions re-serialize byte-identical to the on-chain wire form.
+
+### Account cache
 
 The `rpc.Client` has a built-in account cache — `EnableCache()` and account reads are served from an in-memory sharded cache, with realtime Yellowstone updates piped straight into it so reads for locally-tracked accounts never leave the process:
 
@@ -105,40 +159,81 @@ blockhash, _ := client.GetLatestBlockhash(ctx, rpc.CommitmentConfirmed)
 
 Entries are served when streamed (the feed keeps them current), immutable (`GetAccountInfoImmutable`, for data that never changes), or fetched within the freshness window. Writes are slot-ordered — a late RPC response can never overwrite a newer streamed update — and `GetMultipleAccounts` fetches only its cache misses, deduplicated, in one call. Chain-head data (slot, block height, latest blockhash per commitment level) is cached too, serving `GetSlot`, `GetBlockHeight`, `GetLatestBlockhash` and `IsBlockhashValid` — with its own short freshness window (2s default) so a dead feed can never serve a stale slot or an expiring blockhash. The `WithOpts` variants always bypass the cache; `DisableCache` reverts to pure passthrough. A janitor evicts idle entries; `CacheStats()` reports hits/misses.
 
+## Packages
+
+| Package | Purpose |
+|---|---|
+| [`solana-go`](https://pkg.go.dev/github.com/fluxrpc/solana-go) | Core chain types, codecs, keys and signing, transaction building, PDA derivation |
+| [`solana-go/rpc`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpc) | JSON-RPC HTTP client + every RPC request/response type, streaming gPA, account cache |
+| [`solana-go/ws`](https://pkg.go.dev/github.com/fluxrpc/solana-go/ws) | WebSocket pubsub subscriptions |
+| [`solana-go/yellowstone`](https://pkg.go.dev/github.com/fluxrpc/solana-go/yellowstone) | gRPC Geyser client (separate nested module) |
+
+## Feature overview
+
+### Core types
+
+| Type | File | Notes |
+|---|---|---|
+| `PublicKey` | `public_key.go` | 32-byte account key |
+| `Signature` | `signature.go` | 64-byte ed25519 signature, `Verify` |
+| `Hash` | `hash.go` | 32-byte blockhash |
+| `Base58` / `Base64` | `data.go` | byte slices with base58/base64 JSON encoding |
+| `AccountMeta` | `account_meta.go` | account role in an instruction |
+| `Instruction` / `CompiledInstruction` | `instruction.go` | instruction interface + compiled form |
+| `PrivateKey` | `private_key.go` | 64-byte ed25519 keypair, `Sign`, seed/`solana-keygen` file loading |
+| `Message` | `message.go` | legacy + v0 messages, binary & JSON |
+| `Transaction` | `transaction.go` | signatures + message, binary & JSON |
+| `EncodingType` / `Data` | `encoding.go` / `data.go` | RPC data encodings and the `["<content>","<encoding>"]` tuple |
+| `NewTransaction` / `TransactionBuilder` | `transaction_builder.go` | compiles instructions into legacy/v0 messages (fee payer, dedup, lookup tables) |
+
+### RPC
+
+The [`rpc`](rpc/) package implements every method of the Solana JSON-RPC API — one file per method (`rpc/get_block.go`, `rpc/get_transaction.go`, …) plus the shared response types (`TransactionMeta`, `Account`, `DataBytesOrJSON`, the `Parsed*` family). The client's generic call path decodes each response envelope in a single sonic pass into pooled buffers over a transport tuned for high per-endpoint concurrency. The response types themselves are plain JSON-tagged structs with custom codecs only where the wire format demands it, so they also work standalone with any JSON library — decode with `sonic.Unmarshal` for the numbers in the benchmarks below.
+
+For `getProgramAccounts`, `rpc.StreamProgramAccounts(body, fn)` decodes accounts incrementally off the response body as it downloads — memory stays bounded by the largest account instead of the whole response, and decoding overlaps the transfer (built for constant-stream delivery such as fluxrpc's). With a paced-delivery benchmark (2000 accounts arriving as 32KB chunks every 250µs, `BenchmarkStreamProgramAccountsNetwork` vs `BenchmarkBufferedProgramAccountsNetwork`):
+
+| | streamed | buffered (read all, then decode) | |
+|---|---:|---:|---|
+| total wall clock | 4.0 ms | 6.2 ms | 1.5x faster |
+| time to first account | 0.09 ms | 6.2 ms | ~68x faster |
+| memory per response | 686 KB | 2.1 MB | 3.0x less |
+| allocations | 4.3 k | 14.1 k | 3.3x fewer |
+
+### WebSocket subscriptions
+
+The [`ws`](ws/) package covers all nine pubsub subscriptions over [gobwas/ws](https://github.com/gobwas/ws) raw frames. One read loop reuses a single message buffer and routes exact-size payload copies to buffered per-subscription channels; typed decoding happens on the consumer's goroutine via generic `Subscription[T]`, so a slow consumer drops (and counts) its own notifications instead of stalling the socket. Subscription channels are registered inside the read loop's ack handling, so notifications arriving immediately behind the subscribe ack are never lost.
+
+Notification pipeline throughput (20k account notifications flooded over a local socket, `BenchmarkWs_AccountNotifications`):
+
+| per notification | fluxrpc `ws` | gagliardetto `rpc/ws` (gorilla) | |
+|---|---:|---:|---|
+| latency | 4.97 µs | 7.23 µs | 1.45x faster |
+| memory | 1.66 KB | 2.20 KB | 1.3x less |
+| allocations | 15.2 | 30.0 | 2.0x fewer |
+
+### Yellowstone (gRPC Geyser)
+
+The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go get github.com/fluxrpc/solana-go/yellowstone`), so its gRPC/protobuf dependency tree never touches the core SDK. It wraps the Geyser protocol: `Connect` with `x-token` auth, TLS auto-detection, tuned keepalive and a 1GB receive limit; `Subscribe` with live filter updates and thin filter builders; unary `Ping`/`GetVersion`/`GetSlot`/`GetLatestBlockhash`/`GetBlockHeight`/`IsBlockhashValid`; and allocation-light converters from geyser protobuf into this SDK's types — converted transactions re-serialize byte-identical and pass signature verification.
+
+| benchmark (bufconn, i7-9700K) | result |
+|---|---:|
+| subscribe throughput (incl. account conversion) | ~600k updates/sec |
+| `ConvertTransaction` | 375 ns/op, 7 allocs |
+| `ConvertAccount` | 55 ns/op, 1 alloc |
+
+### Account cache
+
 | benchmark | result |
 |---|---:|
 | `GetAccountInfo` cache hit | 96 ns, 1 alloc (vs ~125 µs for a localhost RPC round trip) |
 | `CacheStoreStreamed` ingest | 76 ns, 0 allocs (~13M updates/sec) |
 | `GetMultipleAccounts`, 100 cached accounts | 3.6 µs, 2 allocs |
 
-## Install
+### Not included yet
 
-```bash
-go get github.com/fluxrpc/solana-go
-```
+Program instruction builders (System, Token, and friends) are intentionally not part of the SDK yet — they are planned around a registry-based design rather than one hand-written package per program, and contributions there are welcome. Until then, `solana.NewInstruction` with hand-encoded instruction data (as in the quickstart) works against any program.
 
-## Usage
-
-```go
-key := solana_go.MustPublicKeyFromBase58("SysvarC1ock11111111111111111111111111111111")
-fmt.Println(key.String())
-
-// Zero-allocation PDA derivation:
-ata, bump, _ := solana_go.FindAssociatedTokenAddress(wallet, mint)
-
-// HTTP JSON-RPC client (single-pass sonic decode, pooled buffers):
-client := rpc.New("https://your-endpoint")
-account, _ := client.GetAccountInfo(ctx, ata)
-slot, _ := client.GetSlot(ctx, rpc.CommitmentFinalized)
-
-// getProgramAccounts, decoded incrementally while the response downloads:
-client.GetProgramAccountsStream(ctx, program, nil, func(ka *rpc.KeyedAccount) error {
-	process(ka)
-	return nil
-})
-```
-
-The tables and graph below are generated by the [`benchcmp`](benchcmp/) submodule (its own Go module, so upstream's dependency tree never touches this one):
+The tables and graph below are generated by the [`benchcmp`](benchcmp/) submodule (its own Go module, so the comparison target's dependency tree never touches this one), comparing identical operations against the widely-used [gagliardetto/solana-go](https://github.com/gagliardetto/solana-go):
 
 ```bash
 cd benchcmp
@@ -413,7 +508,33 @@ Pda_IsOnCurve
 ```
 <!-- BENCHMARKS:END -->
 
-JSON strategy: encoding is hand-rolled straight into one buffer (measured ~2.5x faster than any reflection-based encoder walking our structs, including sonic); whole-struct decoding uses [bytedance/sonic](https://github.com/bytedance/sonic), which beats upstream's `goccy/go-json`. Callers get these paths regardless of which JSON package they invoke, since they are wired in via the `MarshalJSON`/`UnmarshalJSON` methods.
+JSON strategy: encoding is hand-rolled straight into one buffer (measured ~2.5x faster than any reflection-based encoder walking our structs, including sonic); whole-struct decoding uses [bytedance/sonic](https://github.com/bytedance/sonic), which beats the `goccy/go-json` decoder used by gagliardetto's client — that pairing is what the tables above measure. Callers get these paths regardless of which JSON package they invoke, since they are wired in via the `MarshalJSON`/`UnmarshalJSON` methods.
+
+## Testing
+
+Unit tests run without any network access:
+
+```bash
+go test ./...
+cd yellowstone && go test ./...
+```
+
+Live conformance suites exercise every method against a real endpoint; the RPC suite additionally re-marshals each response type and diffs it against the raw JSON, failing if the server sent a populated field the DTO would drop:
+
+```bash
+RPC_URL=https://... go test ./rpc/ -run TestLiveRPC
+WS_URL=wss://...   go test ./ws/  -run TestLive
+YELLOWSTONE_ENDPOINT=... YELLOWSTONE_TOKEN=... go test ./yellowstone/ -run TestLive
+```
+
+## Documentation
+
+Full API documentation is godoc-first: every exported symbol is documented, each package carries an architectural overview in its `doc.go`, and runnable examples appear under Examples on [pkg.go.dev](https://pkg.go.dev/github.com/fluxrpc/solana-go). Browse locally with:
+
+```bash
+go doc github.com/fluxrpc/solana-go            # or any symbol, e.g. go doc rpc.Client
+go run golang.org/x/pkgsite/cmd/pkgsite@latest -open .
+```
 
 ## License
 
