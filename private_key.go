@@ -18,7 +18,7 @@ type PrivateKey []byte
 
 // NewRandomPrivateKey generates a new random private key.
 func NewRandomPrivateKey() (PrivateKey, error) {
-	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	_, priv, err := voied25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, err
 	}

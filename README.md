@@ -185,6 +185,7 @@ Entries are served when streamed (the feed keeps them current), immutable (`GetA
 | `Transaction` | `transaction.go` | signatures + message, binary & JSON |
 | `EncodingType` / `Data` | `encoding.go` / `data.go` | RPC data encodings and the `["<content>","<encoding>"]` tuple |
 | `NewTransaction` / `TransactionBuilder` | `transaction_builder.go` | compiles instructions into legacy/v0 messages (fee payer, dedup, lookup tables) |
+| `Wallet` | `wallet.go` | keypair wrapper: random, base58, keygen file, mnemonic |
 
 ### RPC
 
@@ -352,6 +353,12 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 | FindAssociatedTokenAddress | 3649 | 5396 | 1.5x | 0 | 721 | 0 | 9 |
 | IsOnCurve | 3899 | 3724 | 1.0x | 0 | 0 | 0 | 0 |
 
+### Wallet
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| New | 11664 | 11402 | 1.0x | 152 | 152 | 4 | 4 |
+
 ### ns/op comparison
 
 ```text
@@ -510,6 +517,10 @@ Pda_FindAssociatedTokenAddress
 Pda_IsOnCurve
   flux  ████████████████████████████████████████ 3899 ns/op
   gagl  ██████████████████████████████████████   3724 ns/op  <-- faster
+
+Wallet_New
+  flux  ████████████████████████████████████████ 11664 ns/op
+  gagl  ███████████████████████████████████████  11402 ns/op  <-- faster
 ```
 <!-- BENCHMARKS:END -->
 
