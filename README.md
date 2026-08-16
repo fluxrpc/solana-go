@@ -40,6 +40,7 @@ go run golang.org/x/pkgsite/cmd/pkgsite@latest -open .
 | `Message` | `message.go` | legacy + v0 messages, binary & JSON |
 | `Transaction` | `transaction.go` | signatures + message, binary & JSON |
 | `EncodingType` / `Data` | `encoding.go` / `data.go` | RPC data encodings and the `["<content>","<encoding>"]` tuple |
+| `NewTransaction` / `TransactionBuilder` | `transaction_builder.go` | compiles instructions into legacy/v0 messages (fee payer, dedup, lookup tables) |
 
 ## RPC types
 
@@ -205,10 +206,12 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| MarshalBinary | 278.8 | 361.8 | 1.3x | 640 | 648 | 2 | 3 |
-| FromBytes | 358.7 | 592.2 | 1.7x | 528 | 632 | 6 | 9 |
-| MarshalJSON | 5298 | 7895 | 1.5x | 2177 | 2044 | 3 | 17 |
-| UnmarshalJSON | 8470 | 10241 | 1.2x | 2554 | 2758 | 20 | 59 |
+| MarshalBinary | 251.0 | 306.5 | 1.2x | 640 | 648 | 2 | 3 |
+| FromBytes | 343.1 | 687.2 | 2.0x | 528 | 632 | 6 | 9 |
+| MarshalJSON | 5213 | 7751 | 1.5x | 2178 | 2045 | 3 | 17 |
+| UnmarshalJSON | 8579 | 9855 | 1.1x | 2557 | 2762 | 20 | 59 |
+| Build | 1149 | 1647 | 1.4x | 864 | 1152 | 8 | 15 |
+| BuildV0 | 2048 | 2316 | 1.1x | 1472 | 1200 | 14 | 22 |
 
 ### RpcTransactionMeta
 
@@ -332,20 +335,28 @@ Signature_Verify
   gagl  ████████████████████████████████████████ 32995 ns/op
 
 Transaction_MarshalBinary
-  flux  ███████████████████████████████          278.8 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 361.8 ns/op
+  flux  █████████████████████████████████        251.0 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 306.5 ns/op
 
 Transaction_FromBytes
-  flux  ████████████████████████                 358.7 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 592.2 ns/op
+  flux  ████████████████████                     343.1 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 687.2 ns/op
 
 Transaction_MarshalJSON
-  flux  ███████████████████████████              5298 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 7895 ns/op
+  flux  ███████████████████████████              5213 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 7751 ns/op
 
 Transaction_UnmarshalJSON
-  flux  █████████████████████████████████        8470 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 10241 ns/op
+  flux  ███████████████████████████████████      8579 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 9855 ns/op
+
+Transaction_Build
+  flux  ████████████████████████████             1149 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 1647 ns/op
+
+Transaction_BuildV0
+  flux  ███████████████████████████████████      2048 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 2316 ns/op
 
 RpcTransactionMeta_UnmarshalJSON
   flux  ██████████████████████                   4322 ns/op  <-- faster
