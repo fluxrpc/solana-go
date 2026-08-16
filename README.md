@@ -275,9 +275,10 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 
 | Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Sign | 12411 | 21102 | 1.7x | 64 | 64 | 1 | 1 |
-| PublicKey | 2.46 | 10053 | 4086.6x | 0 | 0 | 0 | 0 |
-| FromKeygenFile | 10324 | 11984 | 1.2x | 64 | 360 | 1 | 67 |
+| Sign | 11410 | 21685 | 1.9x | 64 | 64 | 1 | 1 |
+| PublicKey | 2.73 | 10856 | 3969.3x | 0 | 0 | 0 | 0 |
+| FromKeygenFile | 10298 | 11752 | 1.1x | 64 | 360 | 1 | 67 |
+| FromMnemonic | 1022195 | 1016129 | 1.0x | 6160 | 6480 | 55 | 76 |
 
 ### PublicKey
 
@@ -387,16 +388,20 @@ Message_UnmarshalJSON
   gagl  ████████████████████████████████████████ 5917 ns/op
 
 PrivateKey_Sign
-  flux  ████████████████████████                 12411 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 21102 ns/op
+  flux  █████████████████████                    11410 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 21685 ns/op
 
 PrivateKey_PublicKey
-  flux  █                                        2.46 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 10053 ns/op
+  flux  █                                        2.73 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 10856 ns/op
 
 PrivateKey_FromKeygenFile
-  flux  ██████████████████████████████████       10324 ns/op  <-- faster
-  gagl  ████████████████████████████████████████ 11984 ns/op
+  flux  ███████████████████████████████████      10298 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 11752 ns/op
+
+PrivateKey_FromMnemonic
+  flux  ████████████████████████████████████████ 1022195 ns/op
+  gagl  ████████████████████████████████████████ 1016129 ns/op  <-- faster
 
 PublicKey_String
   flux  ████████████████████████                 71.40 ns/op  <-- faster
