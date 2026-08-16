@@ -31,7 +31,7 @@ func TestIsMnemonicValid(t *testing.T) {
 		"abandon",
 		"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon", // bad checksum
 		"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon zzzzz",   // unknown word
-		"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about abandon",  // reordered
+		"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about abandon",   // reordered
 	}
 	for _, m := range invalid {
 		if IsMnemonicValid(m) {

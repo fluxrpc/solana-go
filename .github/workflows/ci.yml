@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: core (root module)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "gofmt needed on:" && echo "$out" && exit 1
+          fi
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test -race ./...
+
+  yellowstone:
+    name: yellowstone (nested module)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: yellowstone/go.mod
+          cache-dependency-path: yellowstone/go.sum
+      - name: vet
+        working-directory: yellowstone
+        run: go vet ./...
+      - name: test
+        working-directory: yellowstone
+        run: go test -race ./...
+
+  benchcmp:
+    name: benchcmp (upstream parity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: benchcmp/go.mod
+          cache-dependency-path: benchcmp/go.sum
+      - name: vet
+        working-directory: benchcmp
+        run: go vet ./...
+      # Runs the parity tests (byte-identical output vs upstream) and
+      # compiles every benchmark; the benchmarks themselves only run
+      # locally where the README numbers are generated.
+      - name: parity tests
+        working-directory: benchcmp
+        run: go test ./...
