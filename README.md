@@ -120,7 +120,7 @@ for {
 }
 ```
 
-All nine pubsub subscriptions are covered: account, program, logs, signature, slot, slotsUpdates, root, vote, block.
+All nine pubsub subscriptions are covered: account, program, logs, signature, slot, slotsUpdates, root, vote, block — plus `ParsedBlockSubscribe`, the jsonParsed variant of block.
 
 ### Yellowstone (gRPC Geyser)
 
@@ -202,7 +202,7 @@ For `getProgramAccounts`, `rpc.StreamProgramAccounts(body, fn)` decodes accounts
 
 ### WebSocket subscriptions
 
-The [`ws`](ws/) package covers all nine pubsub subscriptions over [gobwas/ws](https://github.com/gobwas/ws) raw frames. One read loop reuses a single message buffer and routes exact-size payload copies to buffered per-subscription channels; typed decoding happens on the consumer's goroutine via generic `Subscription[T]`, so a slow consumer drops (and counts) its own notifications instead of stalling the socket. Subscription channels are registered inside the read loop's ack handling, so notifications arriving immediately behind the subscribe ack are never lost.
+The [`ws`](ws/) package covers all nine pubsub subscriptions (plus the jsonParsed `ParsedBlockSubscribe` variant of blockSubscribe) over [gobwas/ws](https://github.com/gobwas/ws) raw frames. One read loop reuses a single message buffer and routes exact-size payload copies to buffered per-subscription channels; typed decoding happens on the consumer's goroutine via generic `Subscription[T]`, so a slow consumer drops (and counts) its own notifications instead of stalling the socket. Subscription channels are registered inside the read loop's ack handling, so notifications arriving immediately behind the subscribe ack are never lost.
 
 Notification pipeline throughput (20k account notifications flooded over a local socket, `BenchmarkWs_AccountNotifications`):
 
@@ -211,6 +211,8 @@ Notification pipeline throughput (20k account notifications flooded over a local
 | latency | 4.97 µs | 7.23 µs | 1.45x faster |
 | memory | 1.66 KB | 2.20 KB | 1.3x less |
 | allocations | 15.2 | 30.0 | 2.0x fewer |
+
+Parsed-block notifications (2k jsonParsed block payloads, 3 parsed transactions each, `BenchmarkWs_ParsedBlockNotifications`): 21.8 µs vs 79.4 µs per notification — 3.6x faster, 2.2x fewer allocations. Under the same flood the upstream client aborts once its fixed 200-slot channel fills ("reached channel max capacity"); this client's drop-and-count backpressure keeps the socket alive.
 
 ### Yellowstone (gRPC Geyser)
 

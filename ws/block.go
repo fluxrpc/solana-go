@@ -40,10 +40,14 @@ func (c *Client) BlockSubscribeWithOpts(ctx context.Context, filter any, opts rp
 }
 
 func (c *Client) blockSubscribe(ctx context.Context, filter any, commitment rpc.CommitmentType, extra rpc.M) (*Subscription[BlockResult], error) {
-	version := uint64(0)
+	return subscribe[BlockResult](ctx, c, "blockSubscribe", "blockUnsubscribe",
+		[]any{filter, blockSubscribeOpts(solana.EncodingBase64, commitment, extra)})
+}
+
+func blockSubscribeOpts(encoding solana.EncodingType, commitment rpc.CommitmentType, extra rpc.M) rpc.M {
 	opts := rpc.M{
-		"encoding":                       solana.EncodingBase64,
-		"maxSupportedTransactionVersion": version,
+		"encoding":                       encoding,
+		"maxSupportedTransactionVersion": uint64(0),
 	}
 	if commitment != "" {
 		opts["commitment"] = commitment
@@ -51,5 +55,50 @@ func (c *Client) blockSubscribe(ctx context.Context, filter any, commitment rpc.
 	for k, v := range extra {
 		opts[k] = v
 	}
-	return subscribe[BlockResult](ctx, c, "blockSubscribe", "blockUnsubscribe", []any{filter, opts})
+	return opts
+}
+
+// ParsedBlockResult is a blockNotification payload with jsonParsed
+// transaction encoding.
+type ParsedBlockResult struct {
+	Context rpc.Context `json:"context"`
+	Value   struct {
+		// The slot of the block.
+		Slot uint64 `json:"slot"`
+		// Error if something went wrong publishing the notification.
+		Err any `json:"err,omitempty"`
+		// The block itself, as a getBlock jsonParsed result.
+		Block *rpc.GetParsedBlockResult `json:"block,omitempty"`
+	} `json:"value"`
+}
+
+// ParsedBlockSubscribe subscribes to all new finalized blocks with
+// jsonParsed transactions and maxSupportedTransactionVersion 0.
+// NOTE: the node must run with --rpc-pubsub-enable-block-subscription.
+func (c *Client) ParsedBlockSubscribe(ctx context.Context, commitment rpc.CommitmentType) (*Subscription[ParsedBlockResult], error) {
+	return c.parsedBlockSubscribe(ctx, "all", commitment, nil)
+}
+
+// ParsedBlockSubscribeMentions subscribes to new blocks containing
+// transactions that mention the given account or program, with jsonParsed
+// transaction encoding.
+func (c *Client) ParsedBlockSubscribeMentions(ctx context.Context, mentions solana.PublicKey, commitment rpc.CommitmentType) (*Subscription[ParsedBlockResult], error) {
+	return c.parsedBlockSubscribe(ctx, rpc.M{"mentionsAccountOrProgram": mentions}, commitment, nil)
+}
+
+// ParsedBlockSubscribeWithOpts subscribes with full control of the
+// getBlock-style options object; the encoding is forced to jsonParsed to
+// match the ParsedBlockResult payload type.
+func (c *Client) ParsedBlockSubscribeWithOpts(ctx context.Context, filter any, opts rpc.M) (*Subscription[ParsedBlockResult], error) {
+	merged := rpc.M{}
+	for k, v := range opts {
+		merged[k] = v
+	}
+	merged["encoding"] = solana.EncodingJSONParsed
+	return subscribe[ParsedBlockResult](ctx, c, "blockSubscribe", "blockUnsubscribe", []any{filter, merged})
+}
+
+func (c *Client) parsedBlockSubscribe(ctx context.Context, filter any, commitment rpc.CommitmentType, extra rpc.M) (*Subscription[ParsedBlockResult], error) {
+	return subscribe[ParsedBlockResult](ctx, c, "blockSubscribe", "blockUnsubscribe",
+		[]any{filter, blockSubscribeOpts(solana.EncodingJSONParsed, commitment, extra)})
 }
