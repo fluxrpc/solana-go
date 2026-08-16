@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/bytedance/sonic v1.15.2
-	github.com/fluxrpc/base58 v1.0.0
+	github.com/fluxrpc/base58 v1.0.3
 	github.com/gobwas/ws v1.4.0
 	github.com/klauspost/compress v1.19.2
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20251114093237-2ab5a27a1729
