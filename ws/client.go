@@ -375,13 +375,23 @@ func (s *Subscription[T]) Dropped() uint64 {
 
 // Unsubscribe cancels the subscription server-side and closes its channel.
 func (s *Subscription[T]) Unsubscribe(ctx context.Context) error {
+	s.Release()
+	_, err := s.client.request(ctx, s.unsubMethod, []any{s.id}, nil)
+	return err
+}
+
+// Release drops the subscription's client-side resources without
+// contacting the server. Use it instead of Unsubscribe when the server has
+// already removed the subscription — signatureSubscribe is single-shot and
+// auto-cancels after its final notification — so the unsubscribe round
+// trip would be wasted. Safe to call more than once.
+func (s *Subscription[T]) Release() {
 	s.client.mu.Lock()
-	if entry := s.client.subs[s.id]; entry != nil {
+	// Identity check: the server may have reassigned this subscription id
+	// to a newer subscription; never tear that one down.
+	if entry := s.client.subs[s.id]; entry == s.entry {
 		delete(s.client.subs, s.id)
 		close(entry.ch)
 	}
 	s.client.mu.Unlock()
-
-	_, err := s.client.request(ctx, s.unsubMethod, []any{s.id}, nil)
-	return err
 }
