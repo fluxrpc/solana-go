@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/fluxrpc/solana-go/actions/workflows/ci.yml/badge.svg)](https://github.com/fluxrpc/solana-go/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/fluxrpc/solana-go.svg)](https://pkg.go.dev/github.com/fluxrpc/solana-go)
-[![Go Report Card](https://goreportcard.com/badge/github.com/fluxrpc/solana-go)](https://goreportcard.com/report/github.com/fluxrpc/solana-go)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An optimized Go SDK for Solana: core chain types, a JSON-RPC HTTP client covering the full RPC spec, WebSocket pubsub subscriptions, and a Yellowstone gRPC Geyser client — built for performance with a deliberately small dependency tree.
@@ -84,7 +83,7 @@ _, err = tx.Sign(func(pub solana.PublicKey) *solana.PrivateKey {
 sig, err := client.SendTransaction(ctx, tx)
 ```
 
-For the upcoming v1 transaction format ([SIMD-0385](https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0385-transaction-v1.md), shipping with Agave 4.2): 4096-byte transactions with compute-budget requests carried in the header instead of ComputeBudgetProgram instructions:
+For v1 transactions ([SIMD-0385](https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0385-transaction-v1.md)) — up to 4096 bytes, compute-budget requests carried in the header instead of ComputeBudgetProgram instructions:
 
 ```go
 cuLimit := uint32(200_000)
@@ -249,18 +248,6 @@ Notification pipeline throughput (20k account notifications flooded over a local
 
 Parsed-block notifications (2k jsonParsed block payloads, 3 parsed transactions each, `BenchmarkWs_ParsedBlockNotifications`): 21.8 µs vs 79.4 µs per notification — 3.6x faster, 2.2x fewer allocations. Under the same flood the upstream client aborts once its fixed 200-slot channel fills ("reached channel max capacity"); this client's drop-and-count backpressure keeps the socket alive.
 
-### V1 transactions (SIMD-0385)
-
-`TransactionV1` implements the [v1 transaction format](https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0385-transaction-v1.md) shipping with Agave 4.2: version byte 129, a 4096-byte size limit (up from 1232), fee/resource requests (priority fee, compute-unit limit, loaded-data limit, heap size) carried in a header config mask instead of ComputeBudgetProgram instructions, fixed-width counts instead of shortvec, signatures trailing the signed payload, and no address lookup tables (the full address list fits directly at 4096 bytes). `NewTransactionV1` reuses the transaction builder's account compilation; encode/decode enforce every sanitization rule in the SIMD (limits, duplicate addresses, index bounds, config-mask validity, heap bounds, trailing bytes).
-
-There is no upstream implementation to compare against yet; self-measured (i7-9700K):
-
-| operation | result |
-|---|---:|
-| `MarshalBinary` (incl. full sanitization) | 322 ns, 1 alloc |
-| `TransactionV1FromBytes` (incl. full sanitization) | 459 ns, 8 allocs |
-| `NewTransactionV1` (compile from instructions) | 1.5 µs, 10 allocs |
-
 ### Send and confirm
 
 The [`confirm`](confirm/) package sends a transaction and waits for it to reach a commitment. With a WebSocket client, the signature subscription is registered **before** the transaction is sent, so a fast confirmation can never race the subscription — the upstream flow subscribes after sending and, if it loses that race, waits for the full timeout. Signature subscriptions are single-shot, so after the terminal notification only local state is dropped (`ws.Subscription.Release`) instead of an unsubscribe round trip. Without a WebSocket client, confirmation is polled over `getSignatureStatuses` with commitment-aware status ranking.
@@ -284,10 +271,6 @@ The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go ge
 | `GetAccountInfo` cache hit | 96 ns, 1 alloc (vs ~125 µs for a localhost RPC round trip) |
 | `CacheStoreStreamed` ingest | 76 ns, 0 allocs (~13M updates/sec) |
 | `GetMultipleAccounts`, 100 cached accounts | 3.6 µs, 2 allocs |
-
-### Not included yet
-
-Program instruction builders (System, Token, and friends) are intentionally not part of the SDK yet — they are planned around a registry-based design rather than one hand-written package per program, and contributions there are welcome. Until then, `solana.NewInstruction` with hand-encoded instruction data (as in the quickstart) works against any program.
 
 <!-- BENCHMARKS:BEGIN -->
 ## Benchmarks
