@@ -8,7 +8,7 @@ An optimized Go SDK for Solana: core chain types, a JSON-RPC HTTP client coverin
 - Only supported serializations: `String`, `Bytes` (binary wire format) and JSON. No BSON, no text marshalers, no kitchen sink.
 - Five dependencies, each earning its keep: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify), `klauspost/compress` (base64+zstd account data), `gobwas/ws` (raw WebSocket frames). The gRPC stack lives only in the nested `yellowstone` module.
 
-Full Solana spec compliance is a hard requirement: every RPC method and response field, all nine pubsub subscriptions, legacy and v0 transactions, base64+zstd account data.
+Full Solana spec compliance is a hard requirement: every RPC method and response field, all nine pubsub subscriptions, legacy, v0 and v1 ([SIMD-0385](https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0385-transaction-v1.md)) transactions, base64+zstd account data.
 
 ## Install
 
@@ -75,6 +75,18 @@ _, err = tx.Sign(func(pub solana.PublicKey) *solana.PrivateKey {
 })
 
 sig, err := client.SendTransaction(ctx, tx)
+```
+
+For the upcoming v1 transaction format ([SIMD-0385](https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0385-transaction-v1.md), shipping with Agave 4.2): 4096-byte transactions with compute-budget requests carried in the header instead of ComputeBudgetProgram instructions:
+
+```go
+cuLimit := uint32(200_000)
+fee := uint64(5_000)
+txV1, err := solana.NewTransactionV1([]solana.Instruction{ix}, recent.Value.Blockhash,
+	solana.TransactionConfig{ComputeUnitLimit: &cuLimit, PriorityFeeLamports: &fee},
+	solana.TransactionPayer(payer.PublicKey()))
+_, err = txV1.Sign(signerFn)
+raw, err := txV1.MarshalBinary() // up to 4096 bytes, fully sanitized
 ```
 
 `NewTransaction` compiles instructions into a legacy message, or a v0 message when address lookup tables are supplied via `solana.TransactionAddressTables`. To send and wait for confirmation in one call:
@@ -199,6 +211,7 @@ Entries are served when streamed (the feed keeps them current), immutable (`GetA
 | `Transaction` | `transaction.go` | signatures + message, binary & JSON |
 | `EncodingType` / `Data` | `encoding.go` / `data.go` | RPC data encodings and the `["<content>","<encoding>"]` tuple |
 | `NewTransaction` / `TransactionBuilder` | `transaction_builder.go` | compiles instructions into legacy/v0 messages (fee payer, dedup, lookup tables) |
+| `TransactionV1` / `NewTransactionV1` | `transaction_v1.go` | SIMD-0385 v1 transactions: 4096-byte limit, header config mask, full sanitization |
 | `Wallet` | `wallet.go` | keypair wrapper: random, base58, keygen file, mnemonic |
 
 ### RPC
@@ -227,6 +240,18 @@ Notification pipeline throughput (20k account notifications flooded over a local
 | allocations | 15.2 | 30.0 | 2.0x fewer |
 
 Parsed-block notifications (2k jsonParsed block payloads, 3 parsed transactions each, `BenchmarkWs_ParsedBlockNotifications`): 21.8 µs vs 79.4 µs per notification — 3.6x faster, 2.2x fewer allocations. Under the same flood the upstream client aborts once its fixed 200-slot channel fills ("reached channel max capacity"); this client's drop-and-count backpressure keeps the socket alive.
+
+### V1 transactions (SIMD-0385)
+
+`TransactionV1` implements the [v1 transaction format](https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0385-transaction-v1.md) shipping with Agave 4.2: version byte 129, a 4096-byte size limit (up from 1232), fee/resource requests (priority fee, compute-unit limit, loaded-data limit, heap size) carried in a header config mask instead of ComputeBudgetProgram instructions, fixed-width counts instead of shortvec, signatures trailing the signed payload, and no address lookup tables (the full address list fits directly at 4096 bytes). `NewTransactionV1` reuses the transaction builder's account compilation; encode/decode enforce every sanitization rule in the SIMD (limits, duplicate addresses, index bounds, config-mask validity, heap bounds, trailing bytes).
+
+There is no upstream implementation to compare against yet; self-measured (i7-9700K):
+
+| operation | result |
+|---|---:|
+| `MarshalBinary` (incl. full sanitization) | 322 ns, 1 alloc |
+| `TransactionV1FromBytes` (incl. full sanitization) | 459 ns, 8 allocs |
+| `NewTransactionV1` (compile from instructions) | 1.5 µs, 10 allocs |
 
 ### Send and confirm
 
