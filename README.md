@@ -196,6 +196,7 @@ Entries are served when streamed (the feed keeps them current), immutable (`GetA
 | Package | Purpose |
 |---|---|
 | [`solana-go`](https://pkg.go.dev/github.com/fluxrpc/solana-go) | Core chain types, codecs, keys and signing, transaction building, PDA derivation |
+| [`solana-go/binary`](https://pkg.go.dev/github.com/fluxrpc/solana-go/binary) | Allocation-free decoder for the bincode/Borsh layouts of account state and instruction data |
 | [`solana-go/rpc`](https://pkg.go.dev/github.com/fluxrpc/solana-go/rpc) | JSON-RPC HTTP client + every RPC request/response type, streaming gPA, account cache |
 | [`solana-go/ws`](https://pkg.go.dev/github.com/fluxrpc/solana-go/ws) | WebSocket pubsub subscriptions |
 | [`solana-go/confirm`](https://pkg.go.dev/github.com/fluxrpc/solana-go/confirm) | Send-and-confirm: race-free WebSocket confirmation, RPC polling fallback |
@@ -220,6 +221,10 @@ Entries are served when streamed (the feed keeps them current), immutable (`GetA
 | `NewTransaction` / `TransactionBuilder` | `transaction_builder.go` | compiles instructions into legacy/v0 messages (fee payer, dedup, lookup tables) |
 | `TransactionV1` / `NewTransactionV1` | `transaction_v1.go` | SIMD-0385 v1 transactions: 4096-byte limit, header config mask, full sanitization |
 | `Wallet` | `wallet.go` | keypair wrapper: random, base58, keygen file, mnemonic |
+
+### Binary decoding
+
+The [`binary`](binary/) package is a minimal, reflection-free decoder for the little-endian ("bincode") and Borsh layouts used by Solana account state and instruction data. A sticky-error `Decoder` reads fields explicitly in layout order: fixed-width integers, typed `ReadPublicKey` / `ReadSignature` / `ReadHash`, zero-copy `ReadBytes` / `ReadBorshString` (with `Copy` variants), Borsh `Option` / SPL `COption` tags, and canonical compact-u16 lengths. The hot read paths are inlineable and allocation-free; check `Err()` once after the last field.
 
 ### RPC
 
@@ -285,6 +290,16 @@ Machine: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz. Go: go1.26.4 (linux/amd64).
 |---|---:|---:|---:|---:|---:|---:|---:|
 | MarshalJSON | 561.6 | 8003 | 14.3x | 208 | 592 | 1 | 5 |
 | UnmarshalJSON | 296.6 | 7020 | 23.7x | 96 | 354 | 1 | 4 |
+
+### Binary
+
+| Operation | fluxrpc ns/op | upstream ns/op | speedup | fluxrpc B/op | upstream B/op | fluxrpc allocs/op | upstream allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| TokenAccount | 36.23 | 149.6 | 4.1x | 0 | 48 | 0 | 1 |
+| Metadata | 123.0 | 369.1 | 3.0x | 80 | 212 | 1 | 5 |
+| MetadataCopy | 201.6 | 335.8 | 1.7x | 164 | 212 | 4 | 5 |
+| CompactU16Short | 4.30 | 4.12 | 1.0x | 0 | 0 | 0 | 0 |
+| CompactU16 | 6.54 | 8.60 | 1.3x | 0 | 0 | 0 | 0 |
 
 ### Hash
 
@@ -399,6 +414,26 @@ Base58Data_MarshalJSON
 Base58Data_UnmarshalJSON
   flux  ██                                       296.6 ns/op  <-- faster
   gagl  ████████████████████████████████████████ 7020 ns/op
+
+Binary_TokenAccount
+  flux  ██████████                               36.23 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 149.6 ns/op
+
+Binary_Metadata
+  flux  █████████████                            123.0 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 369.1 ns/op
+
+Binary_MetadataCopy
+  flux  ████████████████████████                 201.6 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 335.8 ns/op
+
+Binary_CompactU16Short
+  flux  ████████████████████████████████████████ 4.30 ns/op
+  gagl  ██████████████████████████████████████   4.12 ns/op  <-- faster
+
+Binary_CompactU16
+  flux  ██████████████████████████████           6.54 ns/op  <-- faster
+  gagl  ████████████████████████████████████████ 8.60 ns/op
 
 Hash_String
   flux  ██████████████████████                   71.12 ns/op  <-- faster

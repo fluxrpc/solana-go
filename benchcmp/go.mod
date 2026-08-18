@@ -20,7 +20,7 @@ require (
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/fluxrpc/base58 v1.0.0 // indirect
+	github.com/fluxrpc/base58 v1.0.3 // indirect
 	github.com/gagliardetto/treeout v0.1.4 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
