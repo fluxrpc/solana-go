@@ -53,6 +53,15 @@ func TransactionFromBase64(b64 string) (*Transaction, error) {
 	return TransactionFromBytes(data)
 }
 
+// TransactionFromBase58 decodes a base58 encoded transaction.
+func TransactionFromBase58(b58 string) (*Transaction, error) {
+	data, err := base58.Decode(b58)
+	if err != nil {
+		return nil, err
+	}
+	return TransactionFromBytes(data)
+}
+
 // MarshalBinary encodes the transaction in its Solana wire format,
 // padding missing signatures with zeros.
 func (tx *Transaction) MarshalBinary() ([]byte, error) {

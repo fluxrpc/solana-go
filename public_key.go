@@ -40,6 +40,15 @@ func MustPublicKeyFromBase58(in string) PublicKey {
 	return out
 }
 
+// MPK is a convenience alias for MustPublicKeyFromBase58.
+func MPK(in string) PublicKey {
+	return MustPublicKeyFromBase58(in)
+}
+
+// PublicKeySlice is a slice of public keys; it JSON-encodes as an array of
+// base58 strings.
+type PublicKeySlice []PublicKey
+
 // PublicKeyFromBase58 creates a PublicKey from a base58 encoded string.
 // NOTE: it will accept on- and off-curve pubkeys.
 func PublicKeyFromBase58(in string) (out PublicKey, err error) {
