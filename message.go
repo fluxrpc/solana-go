@@ -409,25 +409,39 @@ func (mx *Message) appendBody(buf []byte) []byte {
 // NOTE: instruction data aliases the input buffer to avoid copies; the
 // caller must not mutate or reuse data while the message is alive.
 func (mx *Message) UnmarshalBinary(data []byte) error {
+	_, err := mx.unmarshalBinaryConsumed(data)
+	return err
+}
+
+// unmarshalBinaryConsumed decodes a legacy or versioned (V0) message and
+// returns the number of bytes consumed, ignoring any trailing bytes.
+func (mx *Message) unmarshalBinaryConsumed(data []byte) (int, error) {
 	if len(data) == 0 {
-		return errors.New("message data is empty")
+		return 0, errors.New("message data is empty")
 	}
 	if data[0]&messageVersionPrefix != 0 {
 		version := data[0] & 0x7F
 		if version != 0 {
-			return fmt.Errorf("unsupported message version: %d", version)
+			return 0, fmt.Errorf("unsupported message version: %d", version)
 		}
 		mx.version = MessageVersionV0
 		rest, err := mx.unmarshalBody(data[1:])
 		if err != nil {
-			return err
+			return 0, err
 		}
-		return mx.unmarshalLookups(rest)
+		rest, err = mx.unmarshalLookups(rest)
+		if err != nil {
+			return 0, err
+		}
+		return len(data) - len(rest), nil
 	}
 	mx.version = MessageVersionLegacy
 	mx.AddressTableLookups = nil
-	_, err := mx.unmarshalBody(data)
-	return err
+	rest, err := mx.unmarshalBody(data)
+	if err != nil {
+		return 0, err
+	}
+	return len(data) - len(rest), nil
 }
 
 // unmarshalBody decodes the version-independent part of the message and
@@ -509,40 +523,41 @@ func (mx *Message) unmarshalBody(data []byte) ([]byte, error) {
 	return data, nil
 }
 
-// unmarshalLookups decodes the address table lookups of a versioned message.
-func (mx *Message) unmarshalLookups(data []byte) error {
+// unmarshalLookups decodes the address table lookups of a versioned message
+// and returns the unconsumed remainder of data.
+func (mx *Message) unmarshalLookups(data []byte) ([]byte, error) {
 	numLookups, n, err := decodeShortvecLen(data)
 	if err != nil {
-		return fmt.Errorf("address table lookups length: %w", err)
+		return nil, fmt.Errorf("address table lookups length: %w", err)
 	}
 	data = data[n:]
 	mx.AddressTableLookups = nil
 	if numLookups == 0 {
-		return nil
+		return data, nil
 	}
 	// A lookup is at least 34 bytes: 32-byte key plus two length prefixes.
 	if numLookups > len(data)/34 {
-		return fmt.Errorf("address table lookups length %d too large for remaining %d bytes", numLookups, len(data))
+		return nil, fmt.Errorf("address table lookups length %d too large for remaining %d bytes", numLookups, len(data))
 	}
 	mx.AddressTableLookups = make(MessageAddressTableLookupSlice, numLookups)
 	for i := range mx.AddressTableLookups {
 		lookup := &mx.AddressTableLookups[i]
 		if len(data) < PublicKeyLength {
-			return fmt.Errorf("lookup %d: missing account key", i)
+			return nil, fmt.Errorf("lookup %d: missing account key", i)
 		}
 		copy(lookup.AccountKey[:], data)
 		data = data[PublicKeyLength:]
 
 		lookup.WritableIndexes, data, err = decodeLookupIndexes(data)
 		if err != nil {
-			return fmt.Errorf("lookup %d writable indexes: %w", i, err)
+			return nil, fmt.Errorf("lookup %d writable indexes: %w", i, err)
 		}
 		lookup.ReadonlyIndexes, data, err = decodeLookupIndexes(data)
 		if err != nil {
-			return fmt.Errorf("lookup %d readonly indexes: %w", i, err)
+			return nil, fmt.Errorf("lookup %d readonly indexes: %w", i, err)
 		}
 	}
-	return nil
+	return data, nil
 }
 
 func decodeLookupIndexes(data []byte) (Uint8SliceAsNum, []byte, error) {
