@@ -62,6 +62,20 @@ func TransactionFromBase58(b58 string) (*Transaction, error) {
 	return TransactionFromBytes(data)
 }
 
+// TransactionFromBytesConsumed decodes one transaction from the start of
+// data, ignoring any trailing bytes, and returns the number of bytes it
+// consumed. Use it to walk buffers holding concatenated transactions, such
+// as ledger entries reassembled from shreds. See TransactionFromBytes for
+// the aliasing caveat.
+func TransactionFromBytesConsumed(data []byte) (*Transaction, int, error) {
+	tx := new(Transaction)
+	n, err := tx.unmarshalBinaryConsumed(data)
+	if err != nil {
+		return nil, 0, err
+	}
+	return tx, n, nil
+}
+
 // MarshalBinary encodes the transaction in its Solana wire format,
 // padding missing signatures with zeros.
 func (tx *Transaction) MarshalBinary() ([]byte, error) {
@@ -92,25 +106,33 @@ func (tx *Transaction) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes a transaction from its Solana wire format.
 // See TransactionFromBytes for the buffer-aliasing contract.
 func (tx *Transaction) UnmarshalBinary(data []byte) error {
+	_, err := tx.unmarshalBinaryConsumed(data)
+	return err
+}
+
+// unmarshalBinaryConsumed decodes the transaction and returns the number of
+// bytes consumed, ignoring any trailing bytes.
+func (tx *Transaction) unmarshalBinaryConsumed(data []byte) (int, error) {
 	numSigs, n, err := decodeShortvecLen(data)
 	if err != nil {
-		return fmt.Errorf("signatures length: %w", err)
+		return 0, fmt.Errorf("signatures length: %w", err)
 	}
-	data = data[n:]
+	rest := data[n:]
 	// Bound the claimed length by the remaining input before allocating.
-	if numSigs > len(data)/SignatureLength {
-		return fmt.Errorf("signatures length %d too large for remaining %d bytes", numSigs, len(data))
+	if numSigs > len(rest)/SignatureLength {
+		return 0, fmt.Errorf("signatures length %d too large for remaining %d bytes", numSigs, len(rest))
 	}
 	tx.Signatures = make([]Signature, numSigs)
 	for i := range tx.Signatures {
-		copy(tx.Signatures[i][:], data[i*SignatureLength:])
+		copy(tx.Signatures[i][:], rest[i*SignatureLength:])
 	}
-	data = data[numSigs*SignatureLength:]
+	rest = rest[numSigs*SignatureLength:]
 
-	if err := tx.Message.UnmarshalBinary(data); err != nil {
-		return fmt.Errorf("unable to decode tx.Message: %w", err)
+	msgConsumed, err := tx.Message.unmarshalBinaryConsumed(rest)
+	if err != nil {
+		return 0, fmt.Errorf("unable to decode tx.Message: %w", err)
 	}
-	return nil
+	return n + numSigs*SignatureLength + msgConsumed, nil
 }
 
 // ToBase64 returns the base64 encoding of the binary transaction.

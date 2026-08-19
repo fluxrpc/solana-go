@@ -283,3 +283,53 @@ func BenchmarkTransactionUnmarshalJSON(b *testing.B) {
 		}
 	}
 }
+
+func TestTransactionFromBytesConsumed(t *testing.T) {
+	for name, fixture := range map[string]string{"legacy": legacyTxBase64, "v0": v0TxBase64} {
+		t.Run(name, func(t *testing.T) {
+			raw, err := base64.StdEncoding.DecodeString(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Exact-length input consumes everything.
+			tx, consumed, err := TransactionFromBytesConsumed(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if consumed != len(raw) {
+				t.Fatalf("consumed = %d, want %d", consumed, len(raw))
+			}
+
+			// Trailing bytes are ignored and not counted.
+			padded := append(append([]byte{}, raw...), 0xDE, 0xAD, 0xBE, 0xEF)
+			tx2, consumed2, err := TransactionFromBytesConsumed(padded)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if consumed2 != len(raw) {
+				t.Fatalf("padded consumed = %d, want %d", consumed2, len(raw))
+			}
+			if tx.ToBase64() != tx2.ToBase64() {
+				t.Fatal("trailing bytes changed the decoded transaction")
+			}
+
+			// Walking a concatenated buffer yields each transaction in turn.
+			joined := append(append([]byte{}, raw...), raw...)
+			off := 0
+			for i := 0; i < 2; i++ {
+				txi, n, err := TransactionFromBytesConsumed(joined[off:])
+				if err != nil {
+					t.Fatalf("tx %d at offset %d: %v", i, off, err)
+				}
+				if txi.ToBase64() != fixture {
+					t.Fatalf("tx %d round-trip mismatch", i)
+				}
+				off += n
+			}
+			if off != len(joined) {
+				t.Fatalf("walk consumed %d of %d bytes", off, len(joined))
+			}
+		})
+	}
+}
