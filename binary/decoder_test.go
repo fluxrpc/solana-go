@@ -289,10 +289,10 @@ func TestCompactU16(t *testing.T) {
 		{[]byte{}, ErrUnexpectedEOF},
 		{[]byte{0x80}, ErrUnexpectedEOF},
 		{[]byte{0x80, 0x80}, ErrUnexpectedEOF},
-		{[]byte{0x80, 0x00}, ErrNonCanonical},     // zero continuation
+		{[]byte{0x80, 0x00}, ErrNonCanonical}, // zero continuation
 		{[]byte{0x80, 0x80, 0x00}, ErrNonCanonical},
-		{[]byte{0xFF, 0xFF, 0x04}, ErrOverflow},   // 0x10000
-		{[]byte{0x80, 0x80, 0x80}, ErrOverflow},   // third continuation bit
+		{[]byte{0xFF, 0xFF, 0x04}, ErrOverflow}, // 0x10000
+		{[]byte{0x80, 0x80, 0x80}, ErrOverflow}, // third continuation bit
 	}
 	for _, tc := range invalid {
 		d := NewDecoder(tc.in)

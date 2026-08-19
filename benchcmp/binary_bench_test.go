@@ -29,12 +29,12 @@ var splTokenAccountBytes = func() []byte {
 	buf = append(buf, binLE64(123_456_789)...) // amount
 	buf = append(buf, binLE32(1)...)           // delegate COption: Some
 	buf = append(buf, delegate[:]...)
-	buf = append(buf, 1)                    // state: Initialized
-	buf = append(buf, binLE32(0)...)        // isNative COption: None
-	buf = append(buf, binLE64(0)...)        // isNative value
-	buf = append(buf, binLE64(42)...)       // delegated amount
-	buf = append(buf, binLE32(0)...)        // closeAuthority COption: None
-	buf = append(buf, make([]byte, 32)...)  // closeAuthority value
+	buf = append(buf, 1)                   // state: Initialized
+	buf = append(buf, binLE32(0)...)       // isNative COption: None
+	buf = append(buf, binLE64(0)...)       // isNative value
+	buf = append(buf, binLE64(42)...)      // delegated amount
+	buf = append(buf, binLE32(0)...)       // closeAuthority COption: None
+	buf = append(buf, make([]byte, 32)...) // closeAuthority value
 	if len(buf) != 165 {
 		panic("bad token account fixture")
 	}
