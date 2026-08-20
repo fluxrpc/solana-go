@@ -6,8 +6,7 @@ import (
 	"testing"
 )
 
-// GetBalanceOpts is a request-builder options struct without JSON tags (as
-// upstream); the round trip below guards the field set.
+// The round trip guards the option field set and JSON names.
 func TestGetBalanceOptsRoundTrip(t *testing.T) {
 	minContextSlot := uint64(83987501)
 	opts := GetBalanceOpts{

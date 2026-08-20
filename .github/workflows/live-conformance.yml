@@ -1,0 +1,62 @@
+name: Live conformance
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-conformance
+  cancel-in-progress: false
+
+jobs:
+  rpc:
+    name: Solana JSON-RPC
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RPC_URL: ${{ secrets.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run live RPC DTO conformance tests
+        run: go test ./rpc -run '^TestLive' -count=1 -v
+
+  websocket:
+    name: Solana WebSocket
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      WS_URL: ${{ secrets.SOLANA_WS_URL || 'wss://api.mainnet-beta.solana.com' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run live WebSocket conformance tests
+        run: go test ./ws -run '^TestLive' -count=1 -v
+
+  yellowstone:
+    name: Yellowstone gRPC
+    if: ${{ vars.YELLOWSTONE_ENDPOINT != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: yellowstone
+    env:
+      YELLOWSTONE_ENDPOINT: ${{ vars.YELLOWSTONE_ENDPOINT }}
+      YELLOWSTONE_TOKEN: ${{ secrets.YELLOWSTONE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: yellowstone/go.mod
+          cache-dependency-path: yellowstone/go.sum
+      - name: Run live Yellowstone conformance tests
+        run: go test -run '^TestLiveYellowstone$' -count=1 -v
