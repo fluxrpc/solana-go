@@ -150,7 +150,7 @@ func BenchmarkConfirm_SendAndConfirm(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			if _, err := fluxconfirm.SendAndConfirm(ctx, client, wsClient, fluxTx); err != nil {
+			if _, err := fluxconfirm.New(client, wsClient).SendAndConfirm(ctx, fluxTx); err != nil {
 				b.Fatal(err)
 			}
 			wsClient.Close()

@@ -46,5 +46,6 @@ func (c *Client) logsSubscribe(ctx context.Context, filter any, commitment rpc.C
 	if commitment != "" {
 		params = append(params, rpc.M{"commitment": commitment})
 	}
-	return subscribe[LogResult](ctx, c, "logsSubscribe", "logsUnsubscribe", params)
+	sub, err := c.subscribe(ctx, "logsSubscribe", "logsUnsubscribe", params)
+	return (*Subscription[LogResult])(sub), err
 }

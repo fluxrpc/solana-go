@@ -16,13 +16,13 @@
 //
 // # Subscribing
 //
-// [Client.Subscribe] opens the bidirectional update stream. Requests are
-// assembled with [NewRequest] and the filter helpers ([AccountsByOwner],
-// [TransactionsByAccount], [Slots], [Blocks], ...); [Stream.Update]
-// changes filters on a live stream:
+// [Client.Subscribe] opens the bidirectional update stream. [Request] owns
+// its named filters and exposes fluent builders; [Stream.Update] changes
+// filters on a live stream:
 //
-//	req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED)
-//	yellowstone.AddAccounts(req, "usdc", yellowstone.AccountsByOwner(tokenProgram))
+//	req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED).
+//		AccountsByOwner("usdc", tokenProgram).
+//		AllSlots("slots")
 //	stream, err := client.Subscribe(ctx, req)
 //	for {
 //		update, err := stream.Recv()
@@ -31,9 +31,9 @@
 //
 // # Converters
 //
-// [ConvertTransaction] and [ConvertAccount] map geyser protobuf payloads
-// into the core SDK's types. Converted transactions re-serialize
-// byte-identical to the on-chain wire form. For throughput,
+// [Update.Transaction] and [Update.Account] map geyser protobuf payloads into
+// the core SDK's types. Converted transactions re-serialize byte-identical to
+// the on-chain wire form. For throughput,
 // [AccountUpdate].Data aliases the protobuf buffer — copy it if it must
 // outlive the next Recv.
 package yellowstone

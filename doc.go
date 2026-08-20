@@ -39,13 +39,19 @@
 //	key := solana_go.MustPublicKeyFromBase58("SysvarC1ock11111111111111111111111111111111")
 //
 //	// Decode a transaction from the wire.
-//	tx, err := solana_go.TransactionFromBase64("...")
+//	decoded, err := solana_go.TransactionFromBase64("...")
 //
 //	// Derive an associated token account.
-//	ata, bump, err := solana_go.FindAssociatedTokenAddress(wallet, mint)
+//	ata, bump, err := wallet.FindAssociatedTokenAddress(mint)
 //
 //	// Build, sign and serialize.
-//	tx := &solana_go.Transaction{Message: msg}
-//	tx.Sign(func(pub solana_go.PublicKey) *solana_go.PrivateKey { return &key })
-//	wire, err := tx.MarshalBinary()
+//	privateKey, err := solana_go.NewRandomPrivateKey()
+//	signed := &solana_go.Transaction{Message: msg}
+//	signed.Sign(func(pub solana_go.PublicKey) *solana_go.PrivateKey {
+//		if pub == privateKey.PublicKey() {
+//			return &privateKey
+//		}
+//		return nil
+//	})
+//	wire, err := signed.MarshalBinary()
 package solana_go

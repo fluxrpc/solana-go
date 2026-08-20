@@ -36,15 +36,17 @@ func (c *Client) BlockSubscribeMentions(ctx context.Context, mentions solana.Pub
 // BlockSubscribeWithOpts subscribes with full control of the getBlock-style
 // options object.
 func (c *Client) BlockSubscribeWithOpts(ctx context.Context, filter any, opts rpc.M) (*Subscription[BlockResult], error) {
-	return subscribe[BlockResult](ctx, c, "blockSubscribe", "blockUnsubscribe", []any{filter, opts})
+	sub, err := c.subscribe(ctx, "blockSubscribe", "blockUnsubscribe", []any{filter, opts})
+	return (*Subscription[BlockResult])(sub), err
 }
 
 func (c *Client) blockSubscribe(ctx context.Context, filter any, commitment rpc.CommitmentType, extra rpc.M) (*Subscription[BlockResult], error) {
-	return subscribe[BlockResult](ctx, c, "blockSubscribe", "blockUnsubscribe",
-		[]any{filter, blockSubscribeOpts(solana.EncodingBase64, commitment, extra)})
+	sub, err := c.subscribe(ctx, "blockSubscribe", "blockUnsubscribe",
+		[]any{filter, c.blockSubscribeOpts(solana.EncodingBase64, commitment, extra)})
+	return (*Subscription[BlockResult])(sub), err
 }
 
-func blockSubscribeOpts(encoding solana.EncodingType, commitment rpc.CommitmentType, extra rpc.M) rpc.M {
+func (c *Client) blockSubscribeOpts(encoding solana.EncodingType, commitment rpc.CommitmentType, extra rpc.M) rpc.M {
 	opts := rpc.M{
 		"encoding":                       encoding,
 		"maxSupportedTransactionVersion": uint64(0),
@@ -95,10 +97,12 @@ func (c *Client) ParsedBlockSubscribeWithOpts(ctx context.Context, filter any, o
 		merged[k] = v
 	}
 	merged["encoding"] = solana.EncodingJSONParsed
-	return subscribe[ParsedBlockResult](ctx, c, "blockSubscribe", "blockUnsubscribe", []any{filter, merged})
+	sub, err := c.subscribe(ctx, "blockSubscribe", "blockUnsubscribe", []any{filter, merged})
+	return (*Subscription[ParsedBlockResult])(sub), err
 }
 
 func (c *Client) parsedBlockSubscribe(ctx context.Context, filter any, commitment rpc.CommitmentType, extra rpc.M) (*Subscription[ParsedBlockResult], error) {
-	return subscribe[ParsedBlockResult](ctx, c, "blockSubscribe", "blockUnsubscribe",
-		[]any{filter, blockSubscribeOpts(solana.EncodingJSONParsed, commitment, extra)})
+	sub, err := c.subscribe(ctx, "blockSubscribe", "blockUnsubscribe",
+		[]any{filter, c.blockSubscribeOpts(solana.EncodingJSONParsed, commitment, extra)})
+	return (*Subscription[ParsedBlockResult])(sub), err
 }

@@ -24,7 +24,7 @@ func BenchmarkPda_FindProgramAddress(b *testing.B) {
 	gaglSeeds := [][]byte{gaglPdaWallet[:], gagl.TokenProgramID[:], gaglPdaMint[:]}
 
 	// Both implementations must agree before we compare their speed.
-	fk, fb, err1 := flux.FindProgramAddress(fluxSeeds, flux.SPLAssociatedTokenAccountProgramID)
+	fk, fb, err1 := flux.SPLAssociatedTokenAccountProgramID.FindProgramAddress(fluxSeeds)
 	gk, gb, err2 := gagl.FindProgramAddress(gaglSeeds, gagl.SPLAssociatedTokenAccountProgramID)
 	if err1 != nil || err2 != nil || fk.String() != gk.String() || fb != gb {
 		b.Fatalf("parity mismatch: %s/%d vs %s/%d (%v, %v)", fk, fb, gk, gb, err1, err2)
@@ -34,7 +34,7 @@ func BenchmarkPda_FindProgramAddress(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			var err error
-			sinkFluxKey, sinkBump, err = flux.FindProgramAddress(fluxSeeds, flux.SPLAssociatedTokenAccountProgramID)
+			sinkFluxKey, sinkBump, err = flux.SPLAssociatedTokenAccountProgramID.FindProgramAddress(fluxSeeds)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -60,7 +60,7 @@ func BenchmarkPda_CreateProgramAddress(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			var err error
-			sinkFluxKey, err = flux.CreateProgramAddress(fluxSeeds, flux.TokenProgramID)
+			sinkFluxKey, err = flux.TokenProgramID.CreateProgramAddress(fluxSeeds)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -83,7 +83,7 @@ func BenchmarkPda_FindAssociatedTokenAddress(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			var err error
-			sinkFluxKey, sinkBump, err = flux.FindAssociatedTokenAddress(fluxPdaWallet, fluxPdaMint)
+			sinkFluxKey, sinkBump, err = fluxPdaWallet.FindAssociatedTokenAddress(fluxPdaMint)
 			if err != nil {
 				b.Fatal(err)
 			}

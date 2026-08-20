@@ -34,8 +34,8 @@ var (
 // stack, so derivation does not allocate.
 const pdaPreimageSize = MaxSeeds*MaxSeedLength + PublicKeyLength + len(PDA_MARKER)
 
-// IsOnCurve reports whether b is a valid compressed ed25519 curve point.
-func IsOnCurve(b []byte) bool {
+// isOnCurve reports whether b is a valid compressed ed25519 curve point.
+func isOnCurve(b []byte) bool {
 	if len(b) != PublicKeyLength {
 		return false
 	}
@@ -51,12 +51,12 @@ func IsOnCurve(b []byte) bool {
 // IsOnCurve reports whether the public key is a valid ed25519 curve point.
 // Program-derived addresses are never on the curve.
 func (p PublicKey) IsOnCurve() bool {
-	return IsOnCurve(p[:])
+	return isOnCurve(p[:])
 }
 
 // CreateWithSeed derives the address base+seed owned by owner, per
 // Pubkey::create_with_seed.
-func CreateWithSeed(base PublicKey, seed string, owner PublicKey) (PublicKey, error) {
+func (base PublicKey) CreateWithSeed(seed string, owner PublicKey) (PublicKey, error) {
 	if len(seed) > MaxSeedLength {
 		return PublicKey{}, ErrMaxSeedLengthExceeded
 	}
@@ -82,7 +82,7 @@ func appendPDAPreimage(buf []byte, seeds [][]byte) ([]byte, error) {
 // CreateProgramAddress derives the program address for the given seeds, per
 // Pubkey::create_program_address. It errors if the derived address lands on
 // the ed25519 curve.
-func CreateProgramAddress(seeds [][]byte, programID PublicKey) (PublicKey, error) {
+func (programID PublicKey) CreateProgramAddress(seeds [][]byte) (PublicKey, error) {
 	if len(seeds) > MaxSeeds {
 		return PublicKey{}, ErrMaxSeedLengthExceeded
 	}
@@ -96,7 +96,7 @@ func CreateProgramAddress(seeds [][]byte, programID PublicKey) (PublicKey, error
 	buf = append(buf, PDA_MARKER...)
 
 	hash := sha256.Sum256(buf)
-	if IsOnCurve(hash[:]) {
+	if isOnCurve(hash[:]) {
 		return PublicKey{}, errAddressOnCurve
 	}
 	return PublicKey(hash), nil
@@ -106,7 +106,7 @@ func CreateProgramAddress(seeds [][]byte, programID PublicKey) (PublicKey, error
 // valid (off-curve) program address for the given seeds, returning the
 // address and the bump. The preimage is assembled once and only the bump
 // byte changes between attempts, so the search does not allocate.
-func FindProgramAddress(seeds [][]byte, programID PublicKey) (PublicKey, uint8, error) {
+func (programID PublicKey) FindProgramAddress(seeds [][]byte) (PublicKey, uint8, error) {
 	if len(seeds) >= MaxSeeds { // the bump seed must also fit
 		return PublicKey{}, 0, ErrMaxSeedLengthExceeded
 	}
@@ -124,7 +124,7 @@ func FindProgramAddress(seeds [][]byte, programID PublicKey) (PublicKey, uint8, 
 	for bump := 255; bump > 0; bump-- {
 		buf[bumpIdx] = byte(bump)
 		hash := sha256.Sum256(buf)
-		if !IsOnCurve(hash[:]) {
+		if !isOnCurve(hash[:]) {
 			return PublicKey(hash), uint8(bump), nil
 		}
 	}
@@ -133,24 +133,22 @@ func FindProgramAddress(seeds [][]byte, programID PublicKey) (PublicKey, uint8, 
 
 // FindAssociatedTokenAddress derives the associated token account of wallet
 // for mint under the SPL Token program.
-func FindAssociatedTokenAddress(wallet PublicKey, mint PublicKey) (PublicKey, uint8, error) {
-	return FindAssociatedTokenAddressWithProgram(wallet, mint, TokenProgramID)
+func (wallet PublicKey) FindAssociatedTokenAddress(mint PublicKey) (PublicKey, uint8, error) {
+	return wallet.FindAssociatedTokenAddressWithProgram(mint, TokenProgramID)
 }
 
 // FindAssociatedTokenAddressWithProgram derives the associated token account
 // of wallet for mint under the given token program (e.g. Token2022ProgramID).
-func FindAssociatedTokenAddressWithProgram(wallet, mint, tokenProgram PublicKey) (PublicKey, uint8, error) {
-	return FindProgramAddress(
+func (wallet PublicKey) FindAssociatedTokenAddressWithProgram(mint, tokenProgram PublicKey) (PublicKey, uint8, error) {
+	return SPLAssociatedTokenAccountProgramID.FindProgramAddress(
 		[][]byte{wallet[:], tokenProgram[:], mint[:]},
-		SPLAssociatedTokenAccountProgramID,
 	)
 }
 
 // FindTokenMetadataAddress derives the Metaplex token metadata address for
 // the given mint.
-func FindTokenMetadataAddress(mint PublicKey) (PublicKey, uint8, error) {
-	return FindProgramAddress(
+func (mint PublicKey) FindTokenMetadataAddress() (PublicKey, uint8, error) {
+	return TokenMetadataProgramID.FindProgramAddress(
 		[][]byte{[]byte("metadata"), TokenMetadataProgramID[:], mint[:]},
-		TokenMetadataProgramID,
 	)
 }

@@ -18,11 +18,11 @@ func ExamplePublicKeyFromBase58() {
 	// true
 }
 
-func ExampleFindAssociatedTokenAddress() {
+func ExamplePublicKey_FindAssociatedTokenAddress() {
 	wallet := solana.MustPublicKeyFromBase58("G7Hf2J55BAkHtbbXPh94UTGRCQioKPpnb5oKQMBteXo")
 	usdc := solana.MustPublicKeyFromBase58("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
 
-	ata, bump, err := solana.FindAssociatedTokenAddress(wallet, usdc)
+	ata, bump, err := wallet.FindAssociatedTokenAddress(usdc)
 	if err != nil {
 		panic(err)
 	}

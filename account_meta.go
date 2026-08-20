@@ -7,9 +7,9 @@ type AccountMeta struct {
 	IsSigner   bool      `json:"isSigner"`
 }
 
-// Meta initializes a new AccountMeta with the provided public key.
-func Meta(pubKey PublicKey) *AccountMeta {
-	return &AccountMeta{PublicKey: pubKey}
+// Meta initializes a new AccountMeta for this public key.
+func (p PublicKey) Meta() *AccountMeta {
+	return &AccountMeta{PublicKey: p}
 }
 
 // WRITE sets IsWritable to true.

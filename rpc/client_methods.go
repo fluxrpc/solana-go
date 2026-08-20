@@ -6,20 +6,6 @@ import (
 	solana "github.com/fluxrpc/solana-go"
 )
 
-// commitmentParam returns the {"commitment": ...} param object, or nothing
-// when the commitment is empty (node default).
-func commitmentParam(commitment CommitmentType) []any {
-	if commitment == "" {
-		return nil
-	}
-	return []any{M{"commitment": commitment}}
-}
-
-// withCommitment appends the optional commitment object to params.
-func withCommitment(params []any, commitment CommitmentType) []any {
-	return append(params, commitmentParam(commitment)...)
-}
-
 // --- Accounts ---
 
 // GetAccountInfo returns all information associated with the account,
@@ -40,7 +26,8 @@ func (c *Client) GetAccountInfoWithOpts(ctx context.Context, account solana.Publ
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetAccountInfoResult](ctx, c, "getAccountInfo", params...)
+	var result GetAccountInfoResult
+	err := c.call(ctx, "getAccountInfo", &result, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +53,8 @@ func (c *Client) GetBalanceWithOpts(ctx context.Context, account solana.PublicKe
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetBalanceResult](ctx, c, "getBalance", params...)
+	var result GetBalanceResult
+	err := c.call(ctx, "getBalance", &result, params...)
 	return &result, err
 }
 
@@ -88,7 +76,8 @@ func (c *Client) GetMultipleAccountsWithOpts(ctx context.Context, accounts []sol
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetMultipleAccountsResult](ctx, c, "getMultipleAccounts", params...)
+	var result GetMultipleAccountsResult
+	err := c.call(ctx, "getMultipleAccounts", &result, params...)
 	return &result, err
 }
 
@@ -102,11 +91,35 @@ func (c *Client) GetProgramAccounts(ctx context.Context, program solana.PublicKe
 // (filters, encoding, data slice, commitment). For very large result sets
 // consider GetProgramAccountsStream instead.
 func (c *Client) GetProgramAccountsWithOpts(ctx context.Context, program solana.PublicKey, opts *GetProgramAccountsOpts) (GetProgramAccountsResult, error) {
+	if opts != nil && opts.WithContext != nil && *opts.WithContext {
+		result, err := c.GetProgramAccountsWithContext(ctx, program, opts)
+		if err != nil {
+			return nil, err
+		}
+		return result.Value, nil
+	}
 	params := []any{program}
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[GetProgramAccountsResult](ctx, c, "getProgramAccounts", params...)
+	var result GetProgramAccountsResult
+	err := c.call(ctx, "getProgramAccounts", &result, params...)
+	return result, err
+}
+
+// GetProgramAccountsWithContext returns the context-wrapped form of
+// getProgramAccounts. The caller's options are copied before withContext is
+// enabled.
+func (c *Client) GetProgramAccountsWithContext(ctx context.Context, program solana.PublicKey, opts *GetProgramAccountsOpts) (*GetProgramAccountsWithContextResult, error) {
+	withContext := true
+	requestOpts := GetProgramAccountsOpts{WithContext: &withContext}
+	if opts != nil {
+		requestOpts = *opts
+		requestOpts.WithContext = &withContext
+	}
+	var result GetProgramAccountsWithContextResult
+	err := c.call(ctx, "getProgramAccounts", &result, program, &requestOpts)
+	return &result, err
 }
 
 // GetLargestAccounts returns the 20 largest accounts by lamport balance via
@@ -126,7 +139,8 @@ func (c *Client) GetLargestAccountsWithOpts(ctx context.Context, opts *GetLarges
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetLargestAccountsResult](ctx, c, "getLargestAccounts", params...)
+	var result GetLargestAccountsResult
+	err := c.call(ctx, "getLargestAccounts", &result, params...)
 	return &result, err
 }
 
@@ -134,7 +148,13 @@ func (c *Client) GetLargestAccountsWithOpts(ctx context.Context, opts *GetLarges
 // makes an account of the given data size rent exempt. Commitment "" uses
 // the node default.
 func (c *Client) GetMinimumBalanceForRentExemption(ctx context.Context, dataSize uint64, commitment CommitmentType) (uint64, error) {
-	return call[uint64](ctx, c, "getMinimumBalanceForRentExemption", withCommitment([]any{dataSize}, commitment)...)
+	params := []any{dataSize}
+	if commitment != "" {
+		params = append(params, M{"commitment": commitment})
+	}
+	var result uint64
+	err := c.call(ctx, "getMinimumBalanceForRentExemption", &result, params...)
+	return result, err
 }
 
 // --- Blocks ---
@@ -158,18 +178,25 @@ func (c *Client) GetBlockWithOpts(ctx context.Context, slot uint64, opts *GetBlo
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return callNullable[GetBlockResult](ctx, c, "getBlock", params...)
+	var result *GetBlockResult
+	err := c.callNullable(ctx, "getBlock", &result, params...)
+	return result, err
 }
 
 // GetParsedBlock fetches the block with jsonParsed encoding.
 func (c *Client) GetParsedBlock(ctx context.Context, slot uint64, opts *GetBlockOpts) (*GetParsedBlockResult, error) {
+	requestOpts := GetBlockOpts{}
 	if opts == nil {
 		version := uint64(0)
-		opts = &GetBlockOpts{MaxSupportedTransactionVersion: &version}
+		requestOpts.MaxSupportedTransactionVersion = &version
+	} else {
+		requestOpts = *opts
 	}
-	opts.Encoding = solana.EncodingJSONParsed
-	params := []any{slot, opts}
-	return callNullable[GetParsedBlockResult](ctx, c, "getBlock", params...)
+	requestOpts.Encoding = solana.EncodingJSONParsed
+	params := []any{slot, &requestOpts}
+	var result *GetParsedBlockResult
+	err := c.callNullable(ctx, "getBlock", &result, params...)
+	return result, err
 }
 
 // GetBlockHeight returns the current block height via getBlockHeight.
@@ -201,13 +228,16 @@ func (c *Client) GetBlockHeightWithOpts(ctx context.Context, opts *GetBlockHeigh
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[uint64](ctx, c, "getBlockHeight", params...)
+	var result uint64
+	err := c.call(ctx, "getBlockHeight", &result, params...)
+	return result, err
 }
 
 // GetBlockCommitment returns the amount of cluster stake that voted on the
 // block at the given slot, via getBlockCommitment.
 func (c *Client) GetBlockCommitment(ctx context.Context, slot uint64) (*GetBlockCommitmentResult, error) {
-	result, err := call[GetBlockCommitmentResult](ctx, c, "getBlockCommitment", slot)
+	var result GetBlockCommitmentResult
+	err := c.call(ctx, "getBlockCommitment", &result, slot)
 	return &result, err
 }
 
@@ -224,14 +254,20 @@ func (c *Client) GetBlockProductionWithOpts(ctx context.Context, opts *GetBlockP
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetBlockProductionResult](ctx, c, "getBlockProduction", params...)
+	var result GetBlockProductionResult
+	err := c.call(ctx, "getBlockProduction", &result, params...)
 	return &result, err
 }
 
 // GetBlockTime returns the estimated production time of the block at the
 // given slot via getBlockTime.
 func (c *Client) GetBlockTime(ctx context.Context, slot uint64) (solana.UnixTimeSeconds, error) {
-	return call[solana.UnixTimeSeconds](ctx, c, "getBlockTime", slot)
+	var result *solana.UnixTimeSeconds
+	err := c.callNullable(ctx, "getBlockTime", &result, slot)
+	if err != nil {
+		return 0, err
+	}
+	return *result, nil
 }
 
 // GetBlocks returns the confirmed blocks between startSlot and endSlot
@@ -254,7 +290,9 @@ func (c *Client) GetBlocksWithOpts(ctx context.Context, startSlot uint64, endSlo
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[BlocksResult](ctx, c, "getBlocks", params...)
+	var result BlocksResult
+	err := c.call(ctx, "getBlocks", &result, params...)
+	return result, err
 }
 
 // GetBlocksWithLimit returns up to limit confirmed blocks starting at
@@ -273,13 +311,17 @@ func (c *Client) GetBlocksWithLimitWithOpts(ctx context.Context, startSlot uint6
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[BlocksResult](ctx, c, "getBlocksWithLimit", params...)
+	var result BlocksResult
+	err := c.call(ctx, "getBlocksWithLimit", &result, params...)
+	return result, err
 }
 
 // GetFirstAvailableBlock returns the slot of the lowest confirmed block
 // still present in the node's ledger, via getFirstAvailableBlock.
 func (c *Client) GetFirstAvailableBlock(ctx context.Context) (uint64, error) {
-	return call[uint64](ctx, c, "getFirstAvailableBlock")
+	var result uint64
+	err := c.call(ctx, "getFirstAvailableBlock", &result)
+	return result, err
 }
 
 // --- Transactions ---
@@ -302,7 +344,9 @@ func (c *Client) GetTransactionWithOpts(ctx context.Context, signature solana.Si
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return callNullable[GetTransactionResult](ctx, c, "getTransaction", params...)
+	var result *GetTransactionResult
+	err := c.callNullable(ctx, "getTransaction", &result, params...)
+	return result, err
 }
 
 // GetParsedTransaction fetches the transaction with jsonParsed encoding.
@@ -317,7 +361,9 @@ func (c *Client) GetParsedTransaction(ctx context.Context, signature solana.Sign
 			obj["maxSupportedTransactionVersion"] = opts.MaxSupportedTransactionVersion
 		}
 	}
-	return callNullable[GetParsedTransactionResult](ctx, c, "getTransaction", signature, obj)
+	var result *GetParsedTransactionResult
+	err := c.callNullable(ctx, "getTransaction", &result, signature, obj)
+	return result, err
 }
 
 // GetTransactionCount returns the current transaction count from the ledger
@@ -336,7 +382,9 @@ func (c *Client) GetTransactionCountWithOpts(ctx context.Context, opts *GetTrans
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[uint64](ctx, c, "getTransactionCount", params...)
+	var result uint64
+	err := c.call(ctx, "getTransactionCount", &result, params...)
+	return result, err
 }
 
 // GetSignaturesForAddress returns signatures of confirmed transactions that
@@ -353,7 +401,9 @@ func (c *Client) GetSignaturesForAddressWithOpts(ctx context.Context, account so
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[[]*TransactionSignature](ctx, c, "getSignaturesForAddress", params...)
+	var result []*TransactionSignature
+	err := c.call(ctx, "getSignaturesForAddress", &result, params...)
+	return result, err
 }
 
 // GetSignatureStatuses returns the processing statuses of the given
@@ -365,7 +415,8 @@ func (c *Client) GetSignatureStatuses(ctx context.Context, searchTransactionHist
 	if searchTransactionHistory {
 		params = append(params, M{"searchTransactionHistory": true})
 	}
-	result, err := call[GetSignatureStatusesResult](ctx, c, "getSignatureStatuses", params...)
+	var result GetSignatureStatusesResult
+	err := c.call(ctx, "getSignatureStatuses", &result, params...)
 	return &result, err
 }
 
@@ -391,13 +442,17 @@ func (c *Client) SendTransactionWithOpts(ctx context.Context, tx *solana.Transac
 // SendRawTransactionWithOpts submits an already-serialized transaction,
 // base64-encoding it for the sendTransaction call.
 func (c *Client) SendRawTransactionWithOpts(ctx context.Context, raw []byte, opts TransactionOpts) (solana.Signature, error) {
-	return call[solana.Signature](ctx, c, "sendTransaction", solana.Base64(raw).String(), opts.ToMap())
+	var result solana.Signature
+	err := c.call(ctx, "sendTransaction", &result, solana.Base64(raw).String(), opts.ToMap())
+	return result, err
 }
 
 // SendEncodedTransaction submits an already base64-encoded transaction.
 func (c *Client) SendEncodedTransaction(ctx context.Context, encoded string) (solana.Signature, error) {
 	var opts TransactionOpts
-	return call[solana.Signature](ctx, c, "sendTransaction", encoded, opts.ToMap())
+	var result solana.Signature
+	err := c.call(ctx, "sendTransaction", &result, encoded, opts.ToMap())
+	return result, err
 }
 
 // SimulateTransaction simulates sending the transaction via
@@ -425,6 +480,9 @@ func (c *Client) SimulateTransactionWithOpts(ctx context.Context, tx *solana.Tra
 		if opts.ReplaceRecentBlockhash {
 			obj["replaceRecentBlockhash"] = true
 		}
+		if opts.InnerInstructions {
+			obj["innerInstructions"] = true
+		}
 		if opts.Accounts != nil {
 			obj["accounts"] = opts.Accounts
 		}
@@ -432,7 +490,8 @@ func (c *Client) SimulateTransactionWithOpts(ctx context.Context, tx *solana.Tra
 			obj["minContextSlot"] = opts.MinContextSlot
 		}
 	}
-	result, err := call[SimulateTransactionResponse](ctx, c, "simulateTransaction", solana.Base64(raw).String(), obj)
+	var result SimulateTransactionResponse
+	err = c.call(ctx, "simulateTransaction", &result, solana.Base64(raw).String(), obj)
 	return &result, err
 }
 
@@ -452,7 +511,9 @@ func (c *Client) RequestAirdropWithOpts(ctx context.Context, account solana.Publ
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[solana.Signature](ctx, c, "requestAirdrop", params...)
+	var result solana.Signature
+	err := c.call(ctx, "requestAirdrop", &result, params...)
+	return result, err
 }
 
 // --- Blockhashes & fees ---
@@ -487,7 +548,8 @@ func (c *Client) GetLatestBlockhashWithOpts(ctx context.Context, opts *GetLatest
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetLatestBlockhashResult](ctx, c, "getLatestBlockhash", params...)
+	var result GetLatestBlockhashResult
+	err := c.call(ctx, "getLatestBlockhash", &result, params...)
 	return &result, err
 }
 
@@ -518,7 +580,8 @@ func (c *Client) IsBlockhashValidWithOpts(ctx context.Context, blockhash solana.
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[IsValidBlockhashResult](ctx, c, "isBlockhashValid", params...)
+	var result IsValidBlockhashResult
+	err := c.call(ctx, "isBlockhashValid", &result, params...)
 	return &result, err
 }
 
@@ -538,19 +601,22 @@ func (c *Client) GetFeeForMessageWithOpts(ctx context.Context, messageBase64 str
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetFeeForMessageResult](ctx, c, "getFeeForMessage", params...)
+	var result GetFeeForMessageResult
+	err := c.call(ctx, "getFeeForMessage", &result, params...)
 	return &result, err
 }
 
 // GetRecentPrioritizationFees returns per-slot prioritization fees from
 // recent blocks via getRecentPrioritizationFees. When accounts are given,
 // fees reflect transactions that lock all of them.
-func (c *Client) GetRecentPrioritizationFees(ctx context.Context, accounts []solana.PublicKey) ([]PriorizationFeeResult, error) {
+func (c *Client) GetRecentPrioritizationFees(ctx context.Context, accounts []solana.PublicKey) ([]PrioritizationFeeResult, error) {
 	params := []any{}
 	if len(accounts) > 0 {
 		params = append(params, accounts)
 	}
-	return call[[]PriorizationFeeResult](ctx, c, "getRecentPrioritizationFees", params...)
+	var result []PrioritizationFeeResult
+	err := c.call(ctx, "getRecentPrioritizationFees", &result, params...)
+	return result, err
 }
 
 // --- Cluster & network ---
@@ -584,7 +650,9 @@ func (c *Client) GetSlotWithOpts(ctx context.Context, opts *GetSlotOpts) (uint64
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[uint64](ctx, c, "getSlot", params...)
+	var result uint64
+	err := c.call(ctx, "getSlot", &result, params...)
+	return result, err
 }
 
 // GetSlotLeader returns the identity of the current slot leader via
@@ -603,68 +671,87 @@ func (c *Client) GetSlotLeaderWithOpts(ctx context.Context, opts *GetSlotLeaderO
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[solana.PublicKey](ctx, c, "getSlotLeader", params...)
+	var result solana.PublicKey
+	err := c.call(ctx, "getSlotLeader", &result, params...)
+	return result, err
 }
 
 // GetSlotLeaders returns the slot leaders for limit slots starting at slot
 // start, via getSlotLeaders.
 func (c *Client) GetSlotLeaders(ctx context.Context, start uint64, limit uint64) ([]solana.PublicKey, error) {
-	return call[[]solana.PublicKey](ctx, c, "getSlotLeaders", start, limit)
+	var result []solana.PublicKey
+	err := c.call(ctx, "getSlotLeaders", &result, start, limit)
+	return result, err
 }
 
 // GetClusterNodes returns information about all the nodes participating in
 // the cluster, via getClusterNodes.
 func (c *Client) GetClusterNodes(ctx context.Context) ([]GetClusterNodesResult, error) {
-	return call[[]GetClusterNodesResult](ctx, c, "getClusterNodes")
+	var result []GetClusterNodesResult
+	err := c.call(ctx, "getClusterNodes", &result)
+	return result, err
 }
 
 // GetVersion returns the solana-core software version running on the node,
 // via getVersion.
 func (c *Client) GetVersion(ctx context.Context) (*GetVersionResult, error) {
-	result, err := call[GetVersionResult](ctx, c, "getVersion")
+	var result GetVersionResult
+	err := c.call(ctx, "getVersion", &result)
 	return &result, err
 }
 
 // GetHealth returns the node's health via getHealth: "ok" when healthy, an
 // RPC error otherwise.
 func (c *Client) GetHealth(ctx context.Context) (string, error) {
-	return call[string](ctx, c, "getHealth")
+	var result string
+	err := c.call(ctx, "getHealth", &result)
+	return result, err
 }
 
 // GetIdentity returns the identity public key of the node via getIdentity.
 func (c *Client) GetIdentity(ctx context.Context) (*GetIdentityResult, error) {
-	result, err := call[GetIdentityResult](ctx, c, "getIdentity")
+	var result GetIdentityResult
+	err := c.call(ctx, "getIdentity", &result)
 	return &result, err
 }
 
 // GetGenesisHash returns the cluster's genesis hash via getGenesisHash.
 func (c *Client) GetGenesisHash(ctx context.Context) (solana.Hash, error) {
-	return call[solana.Hash](ctx, c, "getGenesisHash")
+	var result solana.Hash
+	err := c.call(ctx, "getGenesisHash", &result)
+	return result, err
 }
 
 // GetHighestSnapshotSlot returns the highest slots the node has full and
 // incremental snapshots for, via getHighestSnapshotSlot.
 func (c *Client) GetHighestSnapshotSlot(ctx context.Context) (*GetHighestSnapshotSlotResult, error) {
-	result, err := call[GetHighestSnapshotSlotResult](ctx, c, "getHighestSnapshotSlot")
+	var result GetHighestSnapshotSlotResult
+	err := c.call(ctx, "getHighestSnapshotSlot", &result)
 	return &result, err
 }
 
 // GetMaxRetransmitSlot returns the max slot seen from the retransmit stage,
 // via getMaxRetransmitSlot.
 func (c *Client) GetMaxRetransmitSlot(ctx context.Context) (uint64, error) {
-	return call[uint64](ctx, c, "getMaxRetransmitSlot")
+	var result uint64
+	err := c.call(ctx, "getMaxRetransmitSlot", &result)
+	return result, err
 }
 
 // GetMaxShredInsertSlot returns the max slot seen after shred insert, via
 // getMaxShredInsertSlot.
 func (c *Client) GetMaxShredInsertSlot(ctx context.Context) (uint64, error) {
-	return call[uint64](ctx, c, "getMaxShredInsertSlot")
+	var result uint64
+	err := c.call(ctx, "getMaxShredInsertSlot", &result)
+	return result, err
 }
 
 // MinimumLedgerSlot returns the lowest slot the node has information about
 // in its ledger, via minimumLedgerSlot.
 func (c *Client) MinimumLedgerSlot(ctx context.Context) (uint64, error) {
-	return call[uint64](ctx, c, "minimumLedgerSlot")
+	var result uint64
+	err := c.call(ctx, "minimumLedgerSlot", &result)
+	return result, err
 }
 
 // GetRecentPerformanceSamples returns recent per-slot performance samples
@@ -675,7 +762,9 @@ func (c *Client) GetRecentPerformanceSamples(ctx context.Context, limit *uint) (
 	if limit != nil {
 		params = append(params, *limit)
 	}
-	return call[[]GetRecentPerformanceSamplesResult](ctx, c, "getRecentPerformanceSamples", params...)
+	var result []GetRecentPerformanceSamplesResult
+	err := c.call(ctx, "getRecentPerformanceSamples", &result, params...)
+	return result, err
 }
 
 // --- Epoch, inflation & supply ---
@@ -696,28 +785,36 @@ func (c *Client) GetEpochInfoWithOpts(ctx context.Context, opts *GetEpochInfoOpt
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetEpochInfoResult](ctx, c, "getEpochInfo", params...)
+	var result GetEpochInfoResult
+	err := c.call(ctx, "getEpochInfo", &result, params...)
 	return &result, err
 }
 
 // GetEpochSchedule returns the cluster's epoch schedule configuration via
 // getEpochSchedule.
 func (c *Client) GetEpochSchedule(ctx context.Context) (*GetEpochScheduleResult, error) {
-	result, err := call[GetEpochScheduleResult](ctx, c, "getEpochSchedule")
+	var result GetEpochScheduleResult
+	err := c.call(ctx, "getEpochSchedule", &result)
 	return &result, err
 }
 
 // GetInflationGovernor returns the current inflation governor parameters via
 // getInflationGovernor.
 func (c *Client) GetInflationGovernor(ctx context.Context, commitment CommitmentType) (*GetInflationGovernorResult, error) {
-	result, err := call[GetInflationGovernorResult](ctx, c, "getInflationGovernor", commitmentParam(commitment)...)
+	params := []any{}
+	if commitment != "" {
+		params = append(params, M{"commitment": commitment})
+	}
+	var result GetInflationGovernorResult
+	err := c.call(ctx, "getInflationGovernor", &result, params...)
 	return &result, err
 }
 
 // GetInflationRate returns the inflation values for the current epoch via
 // getInflationRate.
 func (c *Client) GetInflationRate(ctx context.Context) (*GetInflationRateResult, error) {
-	result, err := call[GetInflationRateResult](ctx, c, "getInflationRate")
+	var result GetInflationRateResult
+	err := c.call(ctx, "getInflationRate", &result)
 	return &result, err
 }
 
@@ -729,7 +826,9 @@ func (c *Client) GetInflationReward(ctx context.Context, addresses []solana.Publ
 	if opts != nil {
 		params = append(params, opts)
 	}
-	return call[[]*GetInflationRewardResult](ctx, c, "getInflationReward", params...)
+	var result []*GetInflationRewardResult
+	err := c.call(ctx, "getInflationReward", &result, params...)
+	return result, err
 }
 
 // GetSupply returns information about the current lamport supply via
@@ -745,7 +844,8 @@ func (c *Client) GetSupplyWithOpts(ctx context.Context, opts *GetSupplyOpts) (*G
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetSupplyResult](ctx, c, "getSupply", params...)
+	var result GetSupplyResult
+	err := c.call(ctx, "getSupply", &result, params...)
 	return &result, err
 }
 
@@ -775,7 +875,12 @@ func (c *Client) GetLeaderScheduleWithOpts(ctx context.Context, opts *GetLeaderS
 			params = append(params, obj)
 		}
 	}
-	return call[GetLeaderScheduleResult](ctx, c, "getLeaderSchedule", params...)
+	var result *GetLeaderScheduleResult
+	err := c.callNullable(ctx, "getLeaderSchedule", &result, params...)
+	if err != nil {
+		return nil, err
+	}
+	return *result, nil
 }
 
 // GetVoteAccounts returns the current and delinquent vote accounts via
@@ -785,7 +890,8 @@ func (c *Client) GetVoteAccounts(ctx context.Context, opts *GetVoteAccountsOpts)
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetVoteAccountsResult](ctx, c, "getVoteAccounts", params...)
+	var result GetVoteAccountsResult
+	err := c.call(ctx, "getVoteAccounts", &result, params...)
 	return &result, err
 }
 
@@ -806,7 +912,8 @@ func (c *Client) GetStakeMinimumDelegationWithOpts(ctx context.Context, opts *Ge
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetStakeMinimumDelegationResult](ctx, c, "getStakeMinimumDelegation", params...)
+	var result GetStakeMinimumDelegationResult
+	err := c.call(ctx, "getStakeMinimumDelegation", &result, params...)
 	return &result, err
 }
 
@@ -829,7 +936,8 @@ func (c *Client) GetTokenAccountBalanceWithOpts(ctx context.Context, account sol
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetTokenAccountBalanceResult](ctx, c, "getTokenAccountBalance", params...)
+	var result GetTokenAccountBalanceResult
+	err := c.call(ctx, "getTokenAccountBalance", &result, params...)
 	return &result, err
 }
 
@@ -848,27 +956,105 @@ func (c *Client) GetTokenAccountsByDelegate(ctx context.Context, delegate solana
 }
 
 func (c *Client) getTokenAccountsBy(ctx context.Context, method string, key solana.PublicKey, config *GetTokenAccountsConfig, opts *GetTokenAccountsOpts) (*GetTokenAccountsResult, error) {
-	params := []any{key}
-	if config != nil {
-		params = append(params, config)
+	if err := config.Validate(); err != nil {
+		return nil, err
 	}
+	params := []any{key, config}
 	if opts != nil {
 		params = append(params, opts)
 	}
-	result, err := call[GetTokenAccountsResult](ctx, c, method, params...)
+	var result GetTokenAccountsResult
+	err := c.call(ctx, method, &result, params...)
 	return &result, err
 }
 
 // GetTokenLargestAccounts returns the 20 largest accounts of an SPL token
 // mint via getTokenLargestAccounts. Commitment "" uses the node default.
 func (c *Client) GetTokenLargestAccounts(ctx context.Context, mint solana.PublicKey, commitment CommitmentType) (*GetTokenLargestAccountsResult, error) {
-	result, err := call[GetTokenLargestAccountsResult](ctx, c, "getTokenLargestAccounts", withCommitment([]any{mint}, commitment)...)
+	params := []any{mint}
+	if commitment != "" {
+		params = append(params, M{"commitment": commitment})
+	}
+	var result GetTokenLargestAccountsResult
+	err := c.call(ctx, "getTokenLargestAccounts", &result, params...)
 	return &result, err
 }
 
 // GetTokenSupply returns the total supply of an SPL token mint via
 // getTokenSupply. Commitment "" uses the node default.
 func (c *Client) GetTokenSupply(ctx context.Context, mint solana.PublicKey, commitment CommitmentType) (*GetTokenSupplyResult, error) {
-	result, err := call[GetTokenSupplyResult](ctx, c, "getTokenSupply", withCommitment([]any{mint}, commitment)...)
+	params := []any{mint}
+	if commitment != "" {
+		params = append(params, M{"commitment": commitment})
+	}
+	var result GetTokenSupplyResult
+	err := c.call(ctx, "getTokenSupply", &result, params...)
+	return &result, err
+}
+
+// --- FluxRPC extensions ---
+
+// GetTransactionsForAddress returns transactions involving address using
+// FluxRPC's indexed transaction-history endpoint.
+func (c *Client) GetTransactionsForAddress(ctx context.Context, address solana.PublicKey, opts *GetTransactionsForAddressOpts) (*GetTransactionsForAddressResult, error) {
+	params := []any{address}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	var result GetTransactionsForAddressResult
+	err := c.call(ctx, "getTransactionsForAddress", &result, params...)
+	return &result, err
+}
+
+// GetParsedTransactionsForAddress returns full transaction history with
+// jsonParsed transactions and metadata. The caller's options are copied.
+func (c *Client) GetParsedTransactionsForAddress(ctx context.Context, address solana.PublicKey, opts *GetTransactionsForAddressOpts) (*GetParsedTransactionsForAddressResult, error) {
+	requestOpts := GetTransactionsForAddressOpts{}
+	if opts != nil {
+		requestOpts = *opts
+	}
+	requestOpts.TransactionDetails = TransactionDetailsFull
+	requestOpts.Encoding = solana.EncodingJSONParsed
+	var result GetParsedTransactionsForAddressResult
+	err := c.call(ctx, "getTransactionsForAddress", &result, address, &requestOpts)
+	return &result, err
+}
+
+// GetPriorityFeeEstimate estimates a compute-unit price using FluxRPC's local
+// fee-market history.
+func (c *Client) GetPriorityFeeEstimate(ctx context.Context, request GetPriorityFeeEstimateRequest) (*GetPriorityFeeEstimateResult, error) {
+	var result GetPriorityFeeEstimateResult
+	err := c.call(ctx, "getPriorityFeeEstimate", &result, request)
+	return &result, err
+}
+
+// GetTokenAccounts returns FluxRPC's holder-index entries for a token mint.
+// A nil opts performs a full scan; a non-nil Limit requests one page.
+func (c *Client) GetTokenAccounts(ctx context.Context, mint solana.PublicKey, opts *GetTokenAccountsIndexOpts) (*GetTokenAccountsIndexResult, error) {
+	params := []any{mint}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	var result GetTokenAccountsIndexResult
+	err := c.call(ctx, "getTokenAccounts", &result, params...)
+	return &result, err
+}
+
+// GetTokenAccountsCount returns FluxRPC's indexed token-account count for a
+// mint.
+func (c *Client) GetTokenAccountsCount(ctx context.Context, mint solana.PublicKey, opts *GetTokenAccountsCountOpts) (uint64, error) {
+	params := []any{mint}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	var result uint64
+	err := c.call(ctx, "getTokenAccountsCount", &result, params...)
+	return result, err
+}
+
+// GetUpcomingLeaders returns the next amount leader groups from FluxRPC.
+func (c *Client) GetUpcomingLeaders(ctx context.Context, amount uint64) (*GetUpcomingLeadersResult, error) {
+	var result GetUpcomingLeadersResult
+	err := c.call(ctx, "getUpcomingLeaders", &result, amount)
 	return &result, err
 }

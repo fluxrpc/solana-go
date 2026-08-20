@@ -30,8 +30,8 @@ type CacheSink interface {
 // block's hash has lastValidBlockHeight = blockHeight + maxBlockhashAge.
 const maxBlockhashAge = 150
 
-// Pipe forwards every account, slot and block-metadata update from the
-// stream into sink until the stream ends, returning the stream's terminal
+// Pipe forwards every account, slot and block-metadata update into sink until
+// the stream ends, returning the stream's terminal
 // error (nil on clean shutdown). It powers the rpc.Client cache end to
 // end: account updates keep GetAccountInfo/GetMultipleAccounts local, slot
 // updates keep GetSlot local, and block metadata keeps
@@ -40,18 +40,18 @@ const maxBlockhashAge = 150
 // commitment must be the commitment level of the subscription: slot
 // updates carry their own status, but account and block-meta updates
 // inherit the stream's level. Subscribe with the filters matching what you
-// want mirrored — Slots() for slots, BlocksMeta() for blockhashes and
-// heights, account filters for accounts:
+// want mirrored — AllSlots for slots, AllBlocksMeta for blockhashes and
+// heights, and account-filter methods for accounts:
 //
-//	req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED)
-//	yellowstone.AddAccounts(req, "watched", yellowstone.AccountsByOwner(owner))
-//	yellowstone.AddSlots(req, "slots", yellowstone.Slots())
-//	yellowstone.AddBlocksMeta(req, "blocks", yellowstone.BlocksMeta())
+//	req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED).
+//		AccountsByOwner("watched", owner).
+//		AllSlots("slots").
+//		AllBlocksMeta("blocks")
 //	stream, err := client.Subscribe(ctx, req)
-//	go yellowstone.Pipe(stream, rpc.CommitmentConfirmed, rpcClient)
-func Pipe(stream *Stream, commitment rpc.CommitmentType, sink CacheSink) error {
+//	go stream.Pipe(rpc.CommitmentConfirmed, rpcClient)
+func (s *Stream) Pipe(commitment rpc.CommitmentType, sink CacheSink) error {
 	for {
-		update, err := stream.Recv()
+		update, err := s.Recv()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil // clean shutdown
@@ -61,12 +61,11 @@ func Pipe(stream *Stream, commitment rpc.CommitmentType, sink CacheSink) error {
 
 		switch {
 		case update.GetAccount() != nil:
-			storeAccount(update.GetAccount(), sink)
+			update.storeAccount(sink)
 
 		case update.GetSlot() != nil:
-			slot := update.GetSlot()
-			if c, ok := slotStatusCommitment(slot.Status); ok {
-				sink.CacheStoreSlot(c, slot.Slot)
+			if c, ok := update.slotCommitment(); ok {
+				sink.CacheStoreSlot(c, update.GetSlot().Slot)
 			}
 
 		case update.GetBlockMeta() != nil:
@@ -82,10 +81,10 @@ func Pipe(stream *Stream, commitment rpc.CommitmentType, sink CacheSink) error {
 	}
 }
 
-// slotStatusCommitment maps geyser slot statuses onto RPC commitment
-// levels; lifecycle-only statuses (created bank, dead, ...) report false.
-func slotStatusCommitment(status pb.SlotStatus) (rpc.CommitmentType, bool) {
-	switch status {
+// slotCommitment maps this update's geyser slot status onto an RPC commitment
+// level; lifecycle-only statuses (created bank, dead, ...) report false.
+func (u *Update) slotCommitment() (rpc.CommitmentType, bool) {
+	switch u.GetSlot().Status {
 	case pb.SlotStatus_SLOT_PROCESSED:
 		return rpc.CommitmentProcessed, true
 	case pb.SlotStatus_SLOT_CONFIRMED:
@@ -97,7 +96,7 @@ func slotStatusCommitment(status pb.SlotStatus) (rpc.CommitmentType, bool) {
 	}
 }
 
-// PipeAccounts forwards every account update from the stream into sink
+// PipeAccounts forwards every account update into sink
 // until the stream ends, returning the stream's terminal error (nil on
 // clean shutdown). Account data is copied, so sink retention is safe.
 // Non-account updates (slots, pings, ...) are ignored.
@@ -105,13 +104,13 @@ func slotStatusCommitment(status pb.SlotStatus) (rpc.CommitmentType, bool) {
 // Subscribe with the account filters you want mirrored locally and reads
 // for those accounts served through the sink never hit the RPC endpoint:
 //
-//	req := yellowstone.NewRequest(pb.CommitmentLevel_PROCESSED)
-//	yellowstone.AddAccounts(req, "watched", yellowstone.AccountsByOwner(owner))
+//	req := yellowstone.NewRequest(pb.CommitmentLevel_PROCESSED).
+//		AccountsByOwner("watched", owner)
 //	stream, err := client.Subscribe(ctx, req)
-//	go yellowstone.PipeAccounts(stream, rpcClient)
-func PipeAccounts(stream *Stream, sink AccountSink) error {
+//	go stream.PipeAccounts(rpcClient)
+func (s *Stream) PipeAccounts(sink AccountSink) error {
 	for {
-		update, err := stream.Recv()
+		update, err := s.Recv()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil // clean shutdown
@@ -119,16 +118,16 @@ func PipeAccounts(stream *Stream, sink AccountSink) error {
 			return err
 		}
 		if acct := update.GetAccount(); acct != nil {
-			storeAccount(acct, sink)
+			update.storeAccount(sink)
 		}
 	}
 }
 
-// storeAccount converts one geyser account update (copying its data out of
+// storeAccount converts this geyser account update (copying its data out of
 // the protobuf buffer, since cached entries outlive the recv) and hands it
 // to the sink.
-func storeAccount(acct *pb.SubscribeUpdateAccount, sink AccountSink) {
-	converted := ConvertAccount(acct)
+func (u *Update) storeAccount(sink AccountSink) {
+	converted := u.Account()
 	if converted == nil {
 		return
 	}

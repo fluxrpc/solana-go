@@ -5,7 +5,7 @@ import "testing"
 func TestAccountMetaBuilders(t *testing.T) {
 	key := testPublicKey()
 
-	meta := Meta(key)
+	meta := key.Meta()
 	if meta.PublicKey != key || meta.IsWritable || meta.IsSigner {
 		t.Fatalf("Meta() = %+v", meta)
 	}

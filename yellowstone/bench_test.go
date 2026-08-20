@@ -56,7 +56,7 @@ func BenchmarkSubscribeThroughput(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if ConvertAccount(update.GetAccount()) == nil {
+		if update.Account() == nil {
 			b.Fatal("missing account update")
 		}
 		count++
@@ -64,10 +64,10 @@ func BenchmarkSubscribeThroughput(b *testing.B) {
 	b.ReportMetric(float64(count)/b.Elapsed().Seconds(), "updates/sec")
 }
 
-func BenchmarkConvertTransaction(b *testing.B) {
+func BenchmarkUpdateTransaction(b *testing.B) {
 	tx := testTransaction(b, true)
 	computeUnits := uint64(4200)
-	update := &pb.SubscribeUpdateTransaction{
+	update := wrapTransactionUpdate(&pb.SubscribeUpdateTransaction{
 		Slot: 341197053,
 		Transaction: &pb.SubscribeUpdateTransactionInfo{
 			Signature:   tx.Signatures[0].Bytes(),
@@ -80,22 +80,22 @@ func BenchmarkConvertTransaction(b *testing.B) {
 				ComputeUnitsConsumed: &computeUnits,
 			},
 		},
-	}
+	})
 
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, _, err := ConvertTransaction(update); err != nil {
+		if _, _, err := update.Transaction(); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkConvertAccount(b *testing.B) {
+func BenchmarkUpdateAccount(b *testing.B) {
 	key, err := solana.NewRandomPrivateKey()
 	if err != nil {
 		b.Fatal(err)
 	}
-	update := &pb.SubscribeUpdateAccount{
+	update := wrapAccountUpdate(&pb.SubscribeUpdateAccount{
 		Slot: 341197053,
 		Account: &pb.SubscribeUpdateAccountInfo{
 			Pubkey:       key.PublicKey().Bytes(),
@@ -105,11 +105,11 @@ func BenchmarkConvertAccount(b *testing.B) {
 			Data:         make([]byte, 165),
 			WriteVersion: 42,
 		},
-	}
+	})
 
 	b.ReportAllocs()
 	for b.Loop() {
-		if ConvertAccount(update) == nil {
+		if update.Account() == nil {
 			b.Fatal("nil update")
 		}
 	}

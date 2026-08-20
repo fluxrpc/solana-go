@@ -17,8 +17,8 @@ const (
 	EncodingJSON EncodingType = "json" // NOTE: you're probably looking for EncodingJSONParsed
 )
 
-// IsAnyOfEncodingType checks whether the provided candidate is any of the allowed.
-func IsAnyOfEncodingType(candidate EncodingType, allowed ...EncodingType) bool {
+// IsAnyOf reports whether this encoding is one of the allowed values.
+func (candidate EncodingType) IsAnyOf(allowed ...EncodingType) bool {
 	for _, v := range allowed {
 		if candidate == v {
 			return true

@@ -73,8 +73,7 @@ func (opts *GetBlockOpts) Validate() error {
 	if opts == nil || opts.Encoding == "" {
 		return nil
 	}
-	if !solana.IsAnyOfEncodingType(
-		opts.Encoding,
+	if !opts.Encoding.IsAnyOf(
 		// Valid encodings:
 		solana.EncodingJSON,
 		solana.EncodingJSONParsed,

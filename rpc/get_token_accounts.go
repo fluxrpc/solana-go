@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"errors"
+
 	solana "github.com/fluxrpc/solana-go"
 )
 
@@ -8,12 +10,24 @@ import (
 // by owning token program. Exactly one of the fields must be set.
 type GetTokenAccountsConfig struct {
 	// Pubkey of the specific token Mint to limit accounts to.
-	Mint *solana.PublicKey `json:"mint"`
+	Mint *solana.PublicKey `json:"mint,omitempty"`
 
 	// OR:
 
 	// Pubkey of the Token program ID that owns the accounts.
-	ProgramId *solana.PublicKey `json:"programId"`
+	ProgramId *solana.PublicKey `json:"programId,omitempty"`
+}
+
+// Validate checks the Solana RPC requirement that exactly one token-account
+// selector is present.
+func (c *GetTokenAccountsConfig) Validate() error {
+	if c == nil {
+		return errors.New("token accounts config is required")
+	}
+	if (c.Mint == nil) == (c.ProgramId == nil) {
+		return errors.New("token accounts config must set exactly one of mint or programId")
+	}
+	return nil
 }
 
 // GetTokenAccountsOpts is the optional configuration object for the

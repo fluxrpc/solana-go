@@ -15,7 +15,8 @@ type SlotResult struct {
 
 // SlotSubscribe subscribes to slot processing notifications.
 func (c *Client) SlotSubscribe(ctx context.Context) (*Subscription[SlotResult], error) {
-	return subscribe[SlotResult](ctx, c, "slotSubscribe", "slotUnsubscribe", nil)
+	sub, err := c.subscribe(ctx, "slotSubscribe", "slotUnsubscribe", nil)
+	return (*Subscription[SlotResult])(sub), err
 }
 
 // RootResult is a rootNotification payload: the latest root slot.
@@ -23,7 +24,8 @@ type RootResult uint64
 
 // RootSubscribe subscribes to root changes.
 func (c *Client) RootSubscribe(ctx context.Context) (*Subscription[RootResult], error) {
-	return subscribe[RootResult](ctx, c, "rootSubscribe", "rootUnsubscribe", nil)
+	sub, err := c.subscribe(ctx, "rootSubscribe", "rootUnsubscribe", nil)
+	return (*Subscription[RootResult])(sub), err
 }
 
 // SlotsUpdatesResult is a slotsUpdatesNotification payload.
@@ -54,7 +56,8 @@ type SlotsUpdatesStats struct {
 
 // SlotsUpdatesSubscribe subscribes to detailed per-slot lifecycle updates.
 func (c *Client) SlotsUpdatesSubscribe(ctx context.Context) (*Subscription[SlotsUpdatesResult], error) {
-	return subscribe[SlotsUpdatesResult](ctx, c, "slotsUpdatesSubscribe", "slotsUpdatesUnsubscribe", nil)
+	sub, err := c.subscribe(ctx, "slotsUpdatesSubscribe", "slotsUpdatesUnsubscribe", nil)
+	return (*Subscription[SlotsUpdatesResult])(sub), err
 }
 
 // VoteResult is a voteNotification payload.
@@ -74,5 +77,6 @@ type VoteResult struct {
 // VoteSubscribe subscribes to vote notifications (requires the node to run
 // with --rpc-pubsub-enable-vote-subscription).
 func (c *Client) VoteSubscribe(ctx context.Context) (*Subscription[VoteResult], error) {
-	return subscribe[VoteResult](ctx, c, "voteSubscribe", "voteUnsubscribe", nil)
+	sub, err := c.subscribe(ctx, "voteSubscribe", "voteUnsubscribe", nil)
+	return (*Subscription[VoteResult])(sub), err
 }

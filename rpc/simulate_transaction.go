@@ -34,7 +34,7 @@ type SimulateTransactionResult struct {
 	ReturnData *ReturnData `json:"returnData,omitempty"`
 
 	// If innerInstructions were requested, a list of inner instructions.
-	InnerInstructions []InnerInstruction `json:"innerInstructions,omitempty"`
+	InnerInstructions []ParsedInnerInstruction `json:"innerInstructions,omitempty"`
 
 	// The replacement blockhash used when replaceRecentBlockhash is true.
 	ReplacementBlockhash *ReplacementBlockhash `json:"replacementBlockhash,omitempty"`
