@@ -53,7 +53,20 @@ func (c *Client) GetAccountInfoWithOpts(ctx context.Context, account solana.Publ
 // GetBalance returns the lamport balance of the account via getBalance.
 // Commitment "" uses the node default.
 func (c *Client) GetBalance(ctx context.Context, account solana.PublicKey, commitment CommitmentType) (*GetBalanceResult, error) {
-	result, err := call[GetBalanceResult](ctx, c, "getBalance", withCommitment([]any{account}, commitment)...)
+	var opts *GetBalanceOpts
+	if commitment != "" {
+		opts = &GetBalanceOpts{Commitment: commitment}
+	}
+	return c.GetBalanceWithOpts(ctx, account, opts)
+}
+
+// GetBalanceWithOpts is GetBalance with explicit options.
+func (c *Client) GetBalanceWithOpts(ctx context.Context, account solana.PublicKey, opts *GetBalanceOpts) (*GetBalanceResult, error) {
+	params := []any{account}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[GetBalanceResult](ctx, c, "getBalance", params...)
 	return &result, err
 }
 
@@ -100,15 +113,17 @@ func (c *Client) GetProgramAccountsWithOpts(ctx context.Context, program solana.
 // getLargestAccounts. Empty commitment and filter are omitted from the
 // request so the node defaults apply.
 func (c *Client) GetLargestAccounts(ctx context.Context, commitment CommitmentType, filter LargestAccountsFilterType) (*GetLargestAccountsResult, error) {
-	opts := M{}
-	if commitment != "" {
-		opts["commitment"] = commitment
+	var opts *GetLargestAccountsOpts
+	if commitment != "" || filter != "" {
+		opts = &GetLargestAccountsOpts{Commitment: commitment, Filter: filter}
 	}
-	if filter != "" {
-		opts["filter"] = filter
-	}
+	return c.GetLargestAccountsWithOpts(ctx, opts)
+}
+
+// GetLargestAccountsWithOpts is GetLargestAccounts with explicit options.
+func (c *Client) GetLargestAccountsWithOpts(ctx context.Context, opts *GetLargestAccountsOpts) (*GetLargestAccountsResult, error) {
 	params := []any{}
-	if len(opts) > 0 {
+	if opts != nil {
 		params = append(params, opts)
 	}
 	result, err := call[GetLargestAccountsResult](ctx, c, "getLargestAccounts", params...)
@@ -168,11 +183,25 @@ func (c *Client) GetBlockHeight(ctx context.Context, commitment CommitmentType) 
 			return height, nil
 		}
 	}
-	height, err := call[uint64](ctx, c, "getBlockHeight", commitmentParam(commitment)...)
+	var opts *GetBlockHeightOpts
+	if commitment != "" {
+		opts = &GetBlockHeightOpts{Commitment: commitment}
+	}
+	height, err := c.GetBlockHeightWithOpts(ctx, opts)
 	if err == nil && cache != nil {
 		cache.storeBlockHeight(commitment, height)
 	}
 	return height, err
+}
+
+// GetBlockHeightWithOpts is GetBlockHeight with explicit options. It always
+// queries the RPC endpoint, bypassing the chain-head cache.
+func (c *Client) GetBlockHeightWithOpts(ctx context.Context, opts *GetBlockHeightOpts) (uint64, error) {
+	params := []any{}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	return call[uint64](ctx, c, "getBlockHeight", params...)
 }
 
 // GetBlockCommitment returns the amount of cluster stake that voted on the
@@ -209,17 +238,42 @@ func (c *Client) GetBlockTime(ctx context.Context, slot uint64) (solana.UnixTime
 // (inclusive) via getBlocks. A nil endSlot leaves the upper bound to the
 // node; commitment "" uses the node default.
 func (c *Client) GetBlocks(ctx context.Context, startSlot uint64, endSlot *uint64, commitment CommitmentType) (BlocksResult, error) {
+	var opts *GetBlocksOpts
+	if commitment != "" {
+		opts = &GetBlocksOpts{Commitment: commitment}
+	}
+	return c.GetBlocksWithOpts(ctx, startSlot, endSlot, opts)
+}
+
+// GetBlocksWithOpts is GetBlocks with explicit options.
+func (c *Client) GetBlocksWithOpts(ctx context.Context, startSlot uint64, endSlot *uint64, opts *GetBlocksOpts) (BlocksResult, error) {
 	params := []any{startSlot}
 	if endSlot != nil {
 		params = append(params, *endSlot)
 	}
-	return call[BlocksResult](ctx, c, "getBlocks", withCommitment(params, commitment)...)
+	if opts != nil {
+		params = append(params, opts)
+	}
+	return call[BlocksResult](ctx, c, "getBlocks", params...)
 }
 
 // GetBlocksWithLimit returns up to limit confirmed blocks starting at
 // startSlot, via getBlocksWithLimit.
 func (c *Client) GetBlocksWithLimit(ctx context.Context, startSlot uint64, limit uint64, commitment CommitmentType) (BlocksResult, error) {
-	return call[BlocksResult](ctx, c, "getBlocksWithLimit", withCommitment([]any{startSlot, limit}, commitment)...)
+	var opts *GetBlocksOpts
+	if commitment != "" {
+		opts = &GetBlocksOpts{Commitment: commitment}
+	}
+	return c.GetBlocksWithLimitWithOpts(ctx, startSlot, limit, opts)
+}
+
+// GetBlocksWithLimitWithOpts is GetBlocksWithLimit with explicit options.
+func (c *Client) GetBlocksWithLimitWithOpts(ctx context.Context, startSlot uint64, limit uint64, opts *GetBlocksOpts) (BlocksResult, error) {
+	params := []any{startSlot, limit}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	return call[BlocksResult](ctx, c, "getBlocksWithLimit", params...)
 }
 
 // GetFirstAvailableBlock returns the slot of the lowest confirmed block
@@ -269,7 +323,20 @@ func (c *Client) GetParsedTransaction(ctx context.Context, signature solana.Sign
 // GetTransactionCount returns the current transaction count from the ledger
 // via getTransactionCount. Commitment "" uses the node default.
 func (c *Client) GetTransactionCount(ctx context.Context, commitment CommitmentType) (uint64, error) {
-	return call[uint64](ctx, c, "getTransactionCount", commitmentParam(commitment)...)
+	var opts *GetTransactionCountOpts
+	if commitment != "" {
+		opts = &GetTransactionCountOpts{Commitment: commitment}
+	}
+	return c.GetTransactionCountWithOpts(ctx, opts)
+}
+
+// GetTransactionCountWithOpts is GetTransactionCount with explicit options.
+func (c *Client) GetTransactionCountWithOpts(ctx context.Context, opts *GetTransactionCountOpts) (uint64, error) {
+	params := []any{}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	return call[uint64](ctx, c, "getTransactionCount", params...)
 }
 
 // GetSignaturesForAddress returns signatures of confirmed transactions that
@@ -372,7 +439,20 @@ func (c *Client) SimulateTransactionWithOpts(ctx context.Context, tx *solana.Tra
 // RequestAirdrop requests an airdrop of lamports to the account via
 // requestAirdrop and returns the signature of the airdrop transaction.
 func (c *Client) RequestAirdrop(ctx context.Context, account solana.PublicKey, lamports uint64, commitment CommitmentType) (solana.Signature, error) {
-	return call[solana.Signature](ctx, c, "requestAirdrop", withCommitment([]any{account, lamports}, commitment)...)
+	var opts *RequestAirdropOpts
+	if commitment != "" {
+		opts = &RequestAirdropOpts{Commitment: commitment}
+	}
+	return c.RequestAirdropWithOpts(ctx, account, lamports, opts)
+}
+
+// RequestAirdropWithOpts is RequestAirdrop with explicit options.
+func (c *Client) RequestAirdropWithOpts(ctx context.Context, account solana.PublicKey, lamports uint64, opts *RequestAirdropOpts) (solana.Signature, error) {
+	params := []any{account, lamports}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	return call[solana.Signature](ctx, c, "requestAirdrop", params...)
 }
 
 // --- Blockhashes & fees ---
@@ -389,10 +469,25 @@ func (c *Client) GetLatestBlockhash(ctx context.Context, commitment CommitmentTy
 			return cached, nil
 		}
 	}
-	result, err := call[GetLatestBlockhashResult](ctx, c, "getLatestBlockhash", commitmentParam(commitment)...)
+	var opts *GetLatestBlockhashOpts
+	if commitment != "" {
+		opts = &GetLatestBlockhashOpts{Commitment: commitment}
+	}
+	result, err := c.GetLatestBlockhashWithOpts(ctx, opts)
 	if err == nil && cache != nil && result.Value != nil {
 		cache.storeBlockhash(commitment, result.Value.Blockhash, result.Value.LastValidBlockHeight, result.Context.Slot)
 	}
+	return result, err
+}
+
+// GetLatestBlockhashWithOpts is GetLatestBlockhash with explicit options. It
+// always queries the RPC endpoint, bypassing the chain-head cache.
+func (c *Client) GetLatestBlockhashWithOpts(ctx context.Context, opts *GetLatestBlockhashOpts) (*GetLatestBlockhashResult, error) {
+	params := []any{}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[GetLatestBlockhashResult](ctx, c, "getLatestBlockhash", params...)
 	return &result, err
 }
 
@@ -409,14 +504,41 @@ func (c *Client) IsBlockhashValid(ctx context.Context, blockhash solana.Hash, co
 			return result, nil
 		}
 	}
-	result, err := call[IsValidBlockhashResult](ctx, c, "isBlockhashValid", withCommitment([]any{blockhash}, commitment)...)
+	var opts *IsBlockhashValidOpts
+	if commitment != "" {
+		opts = &IsBlockhashValidOpts{Commitment: commitment}
+	}
+	return c.IsBlockhashValidWithOpts(ctx, blockhash, opts)
+}
+
+// IsBlockhashValidWithOpts is IsBlockhashValid with explicit options. It
+// always queries the RPC endpoint, bypassing the chain-head cache.
+func (c *Client) IsBlockhashValidWithOpts(ctx context.Context, blockhash solana.Hash, opts *IsBlockhashValidOpts) (*IsValidBlockhashResult, error) {
+	params := []any{blockhash}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[IsValidBlockhashResult](ctx, c, "isBlockhashValid", params...)
 	return &result, err
 }
 
 // GetFeeForMessage returns the fee the network will charge for the given
 // base64-encoded message, via getFeeForMessage.
 func (c *Client) GetFeeForMessage(ctx context.Context, messageBase64 string, commitment CommitmentType) (*GetFeeForMessageResult, error) {
-	result, err := call[GetFeeForMessageResult](ctx, c, "getFeeForMessage", withCommitment([]any{messageBase64}, commitment)...)
+	var opts *GetFeeForMessageOpts
+	if commitment != "" {
+		opts = &GetFeeForMessageOpts{Commitment: commitment}
+	}
+	return c.GetFeeForMessageWithOpts(ctx, messageBase64, opts)
+}
+
+// GetFeeForMessageWithOpts is GetFeeForMessage with explicit options.
+func (c *Client) GetFeeForMessageWithOpts(ctx context.Context, messageBase64 string, opts *GetFeeForMessageOpts) (*GetFeeForMessageResult, error) {
+	params := []any{messageBase64}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[GetFeeForMessageResult](ctx, c, "getFeeForMessage", params...)
 	return &result, err
 }
 
@@ -444,17 +566,44 @@ func (c *Client) GetSlot(ctx context.Context, commitment CommitmentType) (uint64
 			return slot, nil
 		}
 	}
-	slot, err := call[uint64](ctx, c, "getSlot", commitmentParam(commitment)...)
+	var opts *GetSlotOpts
+	if commitment != "" {
+		opts = &GetSlotOpts{Commitment: commitment}
+	}
+	slot, err := c.GetSlotWithOpts(ctx, opts)
 	if err == nil && cache != nil {
 		cache.storeSlot(commitment, slot)
 	}
 	return slot, err
 }
 
+// GetSlotWithOpts is GetSlot with explicit options. It always queries the RPC
+// endpoint, bypassing the chain-head cache.
+func (c *Client) GetSlotWithOpts(ctx context.Context, opts *GetSlotOpts) (uint64, error) {
+	params := []any{}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	return call[uint64](ctx, c, "getSlot", params...)
+}
+
 // GetSlotLeader returns the identity of the current slot leader via
 // getSlotLeader.
 func (c *Client) GetSlotLeader(ctx context.Context, commitment CommitmentType) (solana.PublicKey, error) {
-	return call[solana.PublicKey](ctx, c, "getSlotLeader", commitmentParam(commitment)...)
+	var opts *GetSlotLeaderOpts
+	if commitment != "" {
+		opts = &GetSlotLeaderOpts{Commitment: commitment}
+	}
+	return c.GetSlotLeaderWithOpts(ctx, opts)
+}
+
+// GetSlotLeaderWithOpts is GetSlotLeader with explicit options.
+func (c *Client) GetSlotLeaderWithOpts(ctx context.Context, opts *GetSlotLeaderOpts) (solana.PublicKey, error) {
+	params := []any{}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	return call[solana.PublicKey](ctx, c, "getSlotLeader", params...)
 }
 
 // GetSlotLeaders returns the slot leaders for limit slots starting at slot
@@ -534,7 +683,20 @@ func (c *Client) GetRecentPerformanceSamples(ctx context.Context, limit *uint) (
 // GetEpochInfo returns information about the current epoch via getEpochInfo.
 // Commitment "" uses the node default.
 func (c *Client) GetEpochInfo(ctx context.Context, commitment CommitmentType) (*GetEpochInfoResult, error) {
-	result, err := call[GetEpochInfoResult](ctx, c, "getEpochInfo", commitmentParam(commitment)...)
+	var opts *GetEpochInfoOpts
+	if commitment != "" {
+		opts = &GetEpochInfoOpts{Commitment: commitment}
+	}
+	return c.GetEpochInfoWithOpts(ctx, opts)
+}
+
+// GetEpochInfoWithOpts is GetEpochInfo with explicit options.
+func (c *Client) GetEpochInfoWithOpts(ctx context.Context, opts *GetEpochInfoOpts) (*GetEpochInfoResult, error) {
+	params := []any{}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[GetEpochInfoResult](ctx, c, "getEpochInfo", params...)
 	return &result, err
 }
 
@@ -630,7 +792,21 @@ func (c *Client) GetVoteAccounts(ctx context.Context, opts *GetVoteAccountsOpts)
 // GetStakeMinimumDelegation returns the stake minimum delegation in
 // lamports, via getStakeMinimumDelegation.
 func (c *Client) GetStakeMinimumDelegation(ctx context.Context, commitment CommitmentType) (*GetStakeMinimumDelegationResult, error) {
-	result, err := call[GetStakeMinimumDelegationResult](ctx, c, "getStakeMinimumDelegation", commitmentParam(commitment)...)
+	var opts *GetStakeMinimumDelegationOpts
+	if commitment != "" {
+		opts = &GetStakeMinimumDelegationOpts{Commitment: commitment}
+	}
+	return c.GetStakeMinimumDelegationWithOpts(ctx, opts)
+}
+
+// GetStakeMinimumDelegationWithOpts is GetStakeMinimumDelegation with
+// explicit options.
+func (c *Client) GetStakeMinimumDelegationWithOpts(ctx context.Context, opts *GetStakeMinimumDelegationOpts) (*GetStakeMinimumDelegationResult, error) {
+	params := []any{}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[GetStakeMinimumDelegationResult](ctx, c, "getStakeMinimumDelegation", params...)
 	return &result, err
 }
 
@@ -639,7 +815,21 @@ func (c *Client) GetStakeMinimumDelegation(ctx context.Context, commitment Commi
 // GetTokenAccountBalance returns the token balance of an SPL token account
 // via getTokenAccountBalance. Commitment "" uses the node default.
 func (c *Client) GetTokenAccountBalance(ctx context.Context, account solana.PublicKey, commitment CommitmentType) (*GetTokenAccountBalanceResult, error) {
-	result, err := call[GetTokenAccountBalanceResult](ctx, c, "getTokenAccountBalance", withCommitment([]any{account}, commitment)...)
+	var opts *GetTokenAccountBalanceOpts
+	if commitment != "" {
+		opts = &GetTokenAccountBalanceOpts{Commitment: commitment}
+	}
+	return c.GetTokenAccountBalanceWithOpts(ctx, account, opts)
+}
+
+// GetTokenAccountBalanceWithOpts is GetTokenAccountBalance with explicit
+// options.
+func (c *Client) GetTokenAccountBalanceWithOpts(ctx context.Context, account solana.PublicKey, opts *GetTokenAccountBalanceOpts) (*GetTokenAccountBalanceResult, error) {
+	params := []any{account}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[GetTokenAccountBalanceResult](ctx, c, "getTokenAccountBalance", params...)
 	return &result, err
 }
 

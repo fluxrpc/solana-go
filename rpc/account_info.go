@@ -43,3 +43,9 @@ type IsValidBlockhashResult struct {
 	RPCContext
 	Value bool `json:"value"` // True if the blockhash is still valid.
 }
+
+// IsBlockhashValidOpts is the optional configuration for isBlockhashValid.
+type IsBlockhashValidOpts struct {
+	Commitment     CommitmentType `json:"commitment,omitempty"`
+	MinContextSlot *uint64        `json:"minContextSlot,omitempty"`
+}

@@ -20,8 +20,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=
 github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=
-github.com/fluxrpc/base58 v1.0.3 h1:SK9dq0QThHwfZY5LqC3gRPWMqDMK9ErG98I2z1MkIpY=
-github.com/fluxrpc/base58 v1.0.3/go.mod h1:lHCDrkJr1/MZuOnpfPE6a5DLhgvj5YzgVzOD18j9K50=
+github.com/fluxrpc/base58 v1.1.0 h1:jSE3nLhejrkZkMY5Tgyhvvzm1H9WN9NA5OhmSWznmaY=
+github.com/fluxrpc/base58 v1.1.0/go.mod h1:lHCDrkJr1/MZuOnpfPE6a5DLhgvj5YzgVzOD18j9K50=
 github.com/gagliardetto/binary v0.8.0 h1:U9ahc45v9HW0d15LoN++vIXSJyqR/pWw8DDlhd7zvxg=
 github.com/gagliardetto/binary v0.8.0/go.mod h1:2tfj51g5o9dnvsc+fL3Jxr22MuWzYXwx9wEoN0XQ7/c=
 github.com/gagliardetto/solana-go v1.22.0 h1:Gt7tW0yFwDeR4Uf2zQsiKXldG2Z2kUtN8orFsbNWlQU=

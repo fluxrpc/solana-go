@@ -124,7 +124,7 @@ accounts, err := client.GetMultipleAccounts(ctx, key1, key2, key3)
 slot, err := client.GetSlot(ctx, rpc.CommitmentFinalized)
 ```
 
-Every RPC method is available; single-item lookups return `rpc.ErrNotFound` on a null result, and each method has a `WithOpts` variant exposing the full option set (the plain variants default `maxSupportedTransactionVersion=0` so versioned transactions decode out of the box).
+Every RPC method is available; single-item lookups return `rpc.ErrNotFound` on a null result. Methods with multi-field configuration expose a `WithOpts` variant or accept an options struct directly, while convenience methods keep common calls terse. Transaction and block convenience methods default `maxSupportedTransactionVersion=0` so versioned transactions decode out of the box.
 
 ### Streaming getProgramAccounts
 
@@ -615,6 +615,8 @@ RPC_URL=https://... go test ./rpc/ -run TestLiveRPC
 WS_URL=wss://...   go test ./ws/  -run TestLive
 YELLOWSTONE_ENDPOINT=... YELLOWSTONE_TOKEN=... go test ./yellowstone/ -run TestLive
 ```
+
+The `Live conformance` GitHub Actions workflow runs the RPC and WebSocket suites weekly against Solana public endpoints. Set the optional `SOLANA_RPC_URL` and `SOLANA_WS_URL` Actions secrets to use dedicated endpoints without exposing API keys embedded in their URLs. The Yellowstone job runs when the `YELLOWSTONE_ENDPOINT` repository variable is set and reads its token from the `YELLOWSTONE_TOKEN` Actions secret.
 
 ## Documentation
 

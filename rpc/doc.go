@@ -13,8 +13,9 @@
 //
 // Methods that look up a single item (GetAccountInfo, GetTransaction,
 // GetBlock, GetParsedTransaction) return [ErrNotFound] when the RPC result
-// is null. Every method has a WithOpts variant exposing the full option
-// set; the plain variants use pragmatic defaults, notably
+// is null. Methods with multi-field configuration have a WithOpts variant
+// or accept an options struct directly; convenience forms use pragmatic
+// defaults, notably
 // maxSupportedTransactionVersion=0 so versioned transactions decode out of
 // the box. Use [Client.SetHeader] for authenticated endpoints.
 //

@@ -1,5 +1,11 @@
 package rpc
 
+// GetEpochInfoOpts is the optional configuration for getEpochInfo.
+type GetEpochInfoOpts struct {
+	Commitment     CommitmentType `json:"commitment,omitempty"`
+	MinContextSlot *uint64        `json:"minContextSlot,omitempty"`
+}
+
 // GetEpochInfoResult is the response of the getEpochInfo RPC method.
 type GetEpochInfoResult struct {
 	// The current slot.
