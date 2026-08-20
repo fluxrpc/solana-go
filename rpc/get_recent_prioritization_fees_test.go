@@ -8,8 +8,8 @@ import (
 // (TestClient_GetRecentPrioritizationFees).
 const getRecentPrioritizationFeesFixture = `[{"slot":348125,"prioritizationFee":0},{"slot":348126,"prioritizationFee":1000},{"slot":348127,"prioritizationFee":500}]`
 
-func TestPriorizationFeeResultJSON(t *testing.T) {
-	out := jsonRoundTrip[[]PriorizationFeeResult](t, []byte(getRecentPrioritizationFeesFixture))
+func TestPrioritizationFeeResultJSON(t *testing.T) {
+	out := jsonRoundTrip[[]PrioritizationFeeResult](t, []byte(getRecentPrioritizationFeesFixture))
 
 	if len(out) != 3 {
 		t.Fatalf("len = %d", len(out))

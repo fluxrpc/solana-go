@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,10 +24,12 @@ var ErrNotFound = errors.New("not found")
 // It is safe for concurrent use; throughput comes from connection reuse,
 // pooled response buffers and a single sonic pass over each response.
 type Client struct {
-	url     string
-	http    *http.Client
-	headers http.Header
-	id      atomic.Uint64
+	url  string
+	http *http.Client
+	id   atomic.Uint64
+
+	headersMu sync.RWMutex
+	headers   http.Header
 
 	// cache is the optional account cache; nil when disabled. See
 	// EnableCache.
@@ -54,6 +57,8 @@ func NewWithClient(url string, httpClient *http.Client) *Client {
 
 // SetHeader sets a header sent with every request (e.g. authentication).
 func (c *Client) SetHeader(key, value string) {
+	c.headersMu.Lock()
+	defer c.headersMu.Unlock()
 	if c.headers == nil {
 		c.headers = http.Header{}
 	}
@@ -112,20 +117,25 @@ func (c *Client) post(ctx context.Context, payload []byte) (*http.Response, erro
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	for key, values := range c.headers {
+	c.headersMu.RLock()
+	headers := c.headers.Clone()
+	c.headersMu.RUnlock()
+	for key, values := range headers {
 		req.Header[key] = values
 	}
 	return c.http.Do(req)
 }
 
-// call performs a JSON-RPC request and decodes the result into T with a
-// single sonic pass over the whole response envelope.
-func call[T any](ctx context.Context, c *Client, method string, params ...any) (T, error) {
-	var envelope struct {
-		Result T         `json:"result"`
+// call performs a JSON-RPC request and decodes its result into result. The
+// caller must pass a pointer. Keeping the decoder on Client makes ownership
+// of transport and response handling explicit while still decoding
+// the whole response envelope in one sonic pass.
+func (c *Client) call(ctx context.Context, method string, result any, params ...any) error {
+	envelope := struct {
+		Result any       `json:"result"`
 		Error  *RPCError `json:"error"`
-	}
-	err := c.do(ctx, method, params, func(body []byte) error {
+	}{Result: result}
+	return c.do(ctx, method, params, func(body []byte) error {
 		if err := sonic.Unmarshal(body, &envelope); err != nil {
 			return fmt.Errorf("decoding response: %w", err)
 		}
@@ -134,20 +144,22 @@ func call[T any](ctx context.Context, c *Client, method string, params ...any) (
 		}
 		return nil
 	})
-	return envelope.Result, err
 }
 
 // callNullable is call for methods where a JSON null result means the item
 // does not exist; it maps that to ErrNotFound.
-func callNullable[T any](ctx context.Context, c *Client, method string, params ...any) (*T, error) {
-	result, err := call[*T](ctx, c, method, params...)
-	if err != nil {
-		return nil, err
+func (c *Client) callNullable(ctx context.Context, method string, result any, params ...any) error {
+	if err := c.call(ctx, method, result, params...); err != nil {
+		return err
 	}
-	if result == nil {
-		return nil, ErrNotFound
+	value := reflect.ValueOf(result)
+	if value.Kind() != reflect.Pointer || value.IsNil() || value.Elem().Kind() != reflect.Pointer {
+		return errors.New("nullable RPC result must be a non-nil pointer to a pointer")
 	}
-	return result, nil
+	if value.Elem().IsNil() {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // GetProgramAccountsStream invokes getProgramAccounts and decodes accounts

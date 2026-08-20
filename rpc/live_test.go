@@ -591,7 +591,7 @@ func TestLiveRPC(t *testing.T) {
 	})
 
 	t.Run("getRecentPrioritizationFees", func(t *testing.T) {
-		res := decodeStrict[[]PriorizationFeeResult](t, lc.call(t, "getRecentPrioritizationFees", []string{usdcMint}))
+		res := decodeStrict[[]PrioritizationFeeResult](t, lc.call(t, "getRecentPrioritizationFees", []string{usdcMint}))
 		if len(res) == 0 {
 			t.Fatal("no fee samples")
 		}

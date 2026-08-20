@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	solana "github.com/fluxrpc/solana-go"
 	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -191,7 +192,7 @@ func TestClientUnaryWrappers(t *testing.T) {
 	if blockhash.Blockhash != "EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N" || blockhash.LastValidBlockHeight != 150 {
 		t.Fatalf("blockhash = %+v", blockhash)
 	}
-	if _, err := ConvertBlockhash(blockhash.Blockhash); err != nil {
+	if _, err := solana.HashFromBase58(blockhash.Blockhash); err != nil {
 		t.Fatal(err)
 	}
 

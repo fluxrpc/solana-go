@@ -286,6 +286,37 @@ func TestClientHeadersAndIDs(t *testing.T) {
 	}
 }
 
+func TestClientConcurrentSetHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"jsonrpc":"2.0","result":1,"id":1}`))
+	}))
+	defer server.Close()
+
+	client := New(server.URL)
+	const requests = 64
+	errs := make(chan error, requests)
+	var wg sync.WaitGroup
+	for range requests {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			client.SetHeader("X-Api-Key", "secret")
+		}()
+		go func() {
+			defer wg.Done()
+			_, err := client.GetSlot(context.Background(), "")
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestClientContextCancel(t *testing.T) {
 	client, ts := newTestClient(t)
 	ts.delay = 2 * time.Second

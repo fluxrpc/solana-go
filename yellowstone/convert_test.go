@@ -92,6 +92,14 @@ func txToProto(tx *solana.Transaction) *pb.Transaction {
 	return out
 }
 
+func wrapTransactionUpdate(update *pb.SubscribeUpdateTransaction) *Update {
+	return NewUpdate(&pb.SubscribeUpdate{UpdateOneof: &pb.SubscribeUpdate_Transaction{Transaction: update}})
+}
+
+func wrapAccountUpdate(update *pb.SubscribeUpdateAccount) *Update {
+	return NewUpdate(&pb.SubscribeUpdate{UpdateOneof: &pb.SubscribeUpdate_Account{Account: update}})
+}
+
 func TestConvertTransactionRoundTrip(t *testing.T) {
 	for _, v0 := range []bool{false, true} {
 		original := testTransaction(t, v0)
@@ -100,13 +108,13 @@ func TestConvertTransactionRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		converted, meta, err := ConvertTransaction(&pb.SubscribeUpdateTransaction{
+		converted, meta, err := wrapTransactionUpdate(&pb.SubscribeUpdateTransaction{
 			Slot: 100,
 			Transaction: &pb.SubscribeUpdateTransactionInfo{
 				Signature:   original.Signatures[0].Bytes(),
 				Transaction: txToProto(original),
 			},
-		})
+		}).Transaction()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -177,12 +185,12 @@ func TestConvertTransactionMeta(t *testing.T) {
 	}
 
 	tx := testTransaction(t, false)
-	_, meta, err := ConvertTransaction(&pb.SubscribeUpdateTransaction{
+	_, meta, err := wrapTransactionUpdate(&pb.SubscribeUpdateTransaction{
 		Transaction: &pb.SubscribeUpdateTransactionInfo{
 			Transaction: txToProto(tx),
 			Meta:        pbMeta,
 		},
-	})
+	}).Transaction()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,12 +254,12 @@ func TestConvertTransactionMeta(t *testing.T) {
 
 func TestConvertTransactionMetaSuccessHasNilErr(t *testing.T) {
 	tx := testTransaction(t, false)
-	_, meta, err := ConvertTransaction(&pb.SubscribeUpdateTransaction{
+	_, meta, err := wrapTransactionUpdate(&pb.SubscribeUpdateTransaction{
 		Transaction: &pb.SubscribeUpdateTransactionInfo{
 			Transaction: txToProto(tx),
 			Meta:        &pb.TransactionStatusMeta{Fee: 5000},
 		},
-	})
+	}).Transaction()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +269,7 @@ func TestConvertTransactionMetaSuccessHasNilErr(t *testing.T) {
 }
 
 func TestConvertTransactionMissing(t *testing.T) {
-	if _, _, err := ConvertTransaction(&pb.SubscribeUpdateTransaction{}); err == nil {
+	if _, _, err := wrapTransactionUpdate(&pb.SubscribeUpdateTransaction{}).Transaction(); err == nil {
 		t.Fatal("expected error for empty update")
 	}
 }
@@ -275,7 +283,7 @@ func TestConvertAccount(t *testing.T) {
 	sig := solana.Signature{9, 9}
 	data := []byte{1, 2, 3, 4}
 
-	update := ConvertAccount(&pb.SubscribeUpdateAccount{
+	update := wrapAccountUpdate(&pb.SubscribeUpdateAccount{
 		Slot:      341197053,
 		IsStartup: true,
 		Account: &pb.SubscribeUpdateAccountInfo{
@@ -288,7 +296,7 @@ func TestConvertAccount(t *testing.T) {
 			WriteVersion: 42,
 			TxnSignature: sig.Bytes(),
 		},
-	})
+	}).Account()
 	if update.Pubkey != pubkey || update.Lamports != 500 || update.Owner.String() != tokenProgram {
 		t.Fatalf("update = %+v", update)
 	}
@@ -306,24 +314,24 @@ func TestConvertAccount(t *testing.T) {
 		t.Fatal("Data should alias the pb buffer")
 	}
 
-	if ConvertAccount(&pb.SubscribeUpdateAccount{Slot: 1}) != nil {
+	if wrapAccountUpdate(&pb.SubscribeUpdateAccount{Slot: 1}).Account() != nil {
 		t.Fatal("expected nil for update without account info")
 	}
-	noSig := ConvertAccount(&pb.SubscribeUpdateAccount{Account: &pb.SubscribeUpdateAccountInfo{}})
+	noSig := wrapAccountUpdate(&pb.SubscribeUpdateAccount{Account: &pb.SubscribeUpdateAccountInfo{}}).Account()
 	if noSig.TxnSignature != nil {
 		t.Fatal("expected nil TxnSignature")
 	}
 }
 
 func TestConvertBlockhash(t *testing.T) {
-	hash, err := ConvertBlockhash("EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N")
+	hash, err := solana.HashFromBase58("EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if hash.IsZero() || hash.String() != "EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N" {
 		t.Fatalf("hash = %s", hash)
 	}
-	if _, err := ConvertBlockhash("not-base58!"); err == nil {
+	if _, err := solana.HashFromBase58("not-base58!"); err == nil {
 		t.Fatal("expected error for invalid blockhash")
 	}
 }

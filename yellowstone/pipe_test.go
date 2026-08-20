@@ -71,7 +71,7 @@ func TestPipeAccounts(t *testing.T) {
 
 	sink := &fakeSink{}
 	done := make(chan error, 1)
-	go func() { done <- PipeAccounts(stream, sink) }()
+	go func() { done <- stream.PipeAccounts(sink) }()
 
 	select {
 	case err := <-done:
@@ -188,7 +188,7 @@ func TestPipe(t *testing.T) {
 	}
 
 	sink := &fakeCacheSink{}
-	if err := Pipe(stream, rpc.CommitmentConfirmed, sink); err != nil {
+	if err := stream.Pipe(rpc.CommitmentConfirmed, sink); err != nil {
 		t.Fatal(err)
 	}
 

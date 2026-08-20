@@ -71,7 +71,7 @@ func TestSubscribe(t *testing.T) {
 	}
 
 	req := NewRequest(pb.CommitmentLevel_CONFIRMED)
-	AddSlots(req, "slots", Slots())
+	req.AllSlots("slots")
 	stream, err := client.Subscribe(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
@@ -111,7 +111,7 @@ func TestSubscribe(t *testing.T) {
 	}
 
 	change := NewRequest(pb.CommitmentLevel_CONFIRMED)
-	AddAccounts(change, "usdc", AccountsByOwner("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
+	change.AccountsByOwner("usdc", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 	if err := stream.Update(change); err != nil {
 		t.Fatal(err)
 	}
@@ -174,46 +174,45 @@ func TestNewRequestInitializesAllFilterMaps(t *testing.T) {
 }
 
 func TestFilterBuilders(t *testing.T) {
-	owner := AccountsByOwner("o1", "o2")
+	req := NewRequest(pb.CommitmentLevel_PROCESSED).
+		AccountsByOwner("owner", "o1", "o2").
+		AccountsByKey("keys", "k1").
+		TransactionsByAccount("include", "a1", "a2").
+		TransactionsByAccountRequired("required", "a1").
+		TransactionStatusesByAccount("status", "a2").
+		BlocksIncluding("blocks", "a1").
+		AllSlots("slots").
+		AllBlocksMeta("block-meta").
+		AllEntries("entries")
+
+	owner := req.Accounts["owner"]
 	if len(owner.Owner) != 2 || owner.Owner[0] != "o1" || len(owner.Account) != 0 {
 		t.Fatalf("AccountsByOwner = %+v", owner)
 	}
 
-	keys := AccountsByKey("k1")
+	keys := req.Accounts["keys"]
 	if len(keys.Account) != 1 || keys.Account[0] != "k1" || len(keys.Owner) != 0 {
 		t.Fatalf("AccountsByKey = %+v", keys)
 	}
 
-	include := TransactionsByAccount("a1", "a2")
+	include := req.Transactions["include"]
 	if len(include.AccountInclude) != 2 || len(include.AccountRequired) != 0 {
 		t.Fatalf("TransactionsByAccount = %+v", include)
 	}
 
-	required := TransactionsByAccountRequired("a1")
+	required := req.Transactions["required"]
 	if len(required.AccountRequired) != 1 || len(required.AccountInclude) != 0 {
 		t.Fatalf("TransactionsByAccountRequired = %+v", required)
 	}
+	if status := req.TransactionsStatus["status"]; len(status.AccountInclude) != 1 || status.AccountInclude[0] != "a2" {
+		t.Fatalf("TransactionStatusesByAccount = %+v", status)
+	}
 
-	blocks := Blocks("a1")
+	blocks := req.Blocks["blocks"]
 	if len(blocks.AccountInclude) != 1 || blocks.AccountInclude[0] != "a1" {
 		t.Fatalf("Blocks = %+v", blocks)
 	}
 
-	if Slots() == nil || BlocksMeta() == nil || Entries() == nil {
-		t.Fatal("nil filter from builder")
-	}
-
-	// The Add* helpers register under the given name.
-	req := NewRequest(pb.CommitmentLevel_PROCESSED)
-	AddAccounts(req, "a", owner)
-	AddSlots(req, "s", Slots())
-	AddTransactions(req, "t", include)
-	AddBlocks(req, "b", blocks)
-	AddBlocksMeta(req, "bm", BlocksMeta())
-	AddEntries(req, "e", Entries())
-	if req.Accounts["a"] != owner || req.Transactions["t"] != include || req.Blocks["b"] != blocks {
-		t.Fatalf("Add helpers misregistered: %+v", req)
-	}
 	if len(req.Slots) != 1 || len(req.BlocksMeta) != 1 || len(req.Entry) != 1 {
 		t.Fatalf("Add helpers misregistered: %+v", req)
 	}

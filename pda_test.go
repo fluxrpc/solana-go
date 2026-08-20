@@ -13,7 +13,7 @@ var (
 )
 
 func TestFindAssociatedTokenAddress(t *testing.T) {
-	ata, bump, err := FindAssociatedTokenAddress(pdaWallet, pdaMint)
+	ata, bump, err := pdaWallet.FindAssociatedTokenAddress(pdaMint)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestFindAssociatedTokenAddress(t *testing.T) {
 }
 
 func TestFindProgramAddress(t *testing.T) {
-	pda, bump, err := FindProgramAddress([][]byte{[]byte("metadata"), []byte("test-seed")}, TokenProgramID)
+	pda, bump, err := TokenProgramID.FindProgramAddress([][]byte{[]byte("metadata"), []byte("test-seed")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestFindProgramAddress(t *testing.T) {
 
 	// The result must be reproducible through CreateProgramAddress with the
 	// found bump, and must be off the curve.
-	direct, err := CreateProgramAddress([][]byte{[]byte("metadata"), []byte("test-seed"), {bump}}, TokenProgramID)
+	direct, err := TokenProgramID.CreateProgramAddress([][]byte{[]byte("metadata"), []byte("test-seed"), {bump}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestFindProgramAddress(t *testing.T) {
 }
 
 func TestCreateProgramAddress(t *testing.T) {
-	got, err := CreateProgramAddress([][]byte{[]byte("seed-one"), {255}}, TokenProgramID)
+	got, err := TokenProgramID.CreateProgramAddress([][]byte{[]byte("seed-one"), {255}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestCreateProgramAddress(t *testing.T) {
 }
 
 func TestCreateWithSeed(t *testing.T) {
-	got, err := CreateWithSeed(pdaWallet, "my-seed", SystemProgramID)
+	got, err := pdaWallet.CreateWithSeed("my-seed", SystemProgramID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,13 +64,13 @@ func TestCreateWithSeed(t *testing.T) {
 		t.Fatalf("CreateWithSeed = %s, want %s", got, want)
 	}
 
-	if _, err := CreateWithSeed(pdaWallet, strings.Repeat("s", MaxSeedLength+1), SystemProgramID); err != ErrMaxSeedLengthExceeded {
+	if _, err := pdaWallet.CreateWithSeed(strings.Repeat("s", MaxSeedLength+1), SystemProgramID); err != ErrMaxSeedLengthExceeded {
 		t.Fatalf("oversized seed: %v", err)
 	}
 }
 
 func TestFindTokenMetadataAddress(t *testing.T) {
-	got, bump, err := FindTokenMetadataAddress(pdaMint)
+	got, bump, err := pdaMint.FindTokenMetadataAddress()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,10 +81,10 @@ func TestFindTokenMetadataAddress(t *testing.T) {
 
 func TestPDASeedValidation(t *testing.T) {
 	long := bytes.Repeat([]byte{1}, MaxSeedLength+1)
-	if _, err := CreateProgramAddress([][]byte{long}, TokenProgramID); err != ErrMaxSeedLengthExceeded {
+	if _, err := TokenProgramID.CreateProgramAddress([][]byte{long}); err != ErrMaxSeedLengthExceeded {
 		t.Fatalf("oversized seed: %v", err)
 	}
-	if _, _, err := FindProgramAddress([][]byte{long}, TokenProgramID); err != ErrMaxSeedLengthExceeded {
+	if _, _, err := TokenProgramID.FindProgramAddress([][]byte{long}); err != ErrMaxSeedLengthExceeded {
 		t.Fatalf("oversized seed: %v", err)
 	}
 
@@ -92,11 +92,11 @@ func TestPDASeedValidation(t *testing.T) {
 	for i := range many {
 		many[i] = []byte{byte(i)}
 	}
-	if _, err := CreateProgramAddress(many, TokenProgramID); err != ErrMaxSeedLengthExceeded {
+	if _, err := TokenProgramID.CreateProgramAddress(many); err != ErrMaxSeedLengthExceeded {
 		t.Fatalf("too many seeds: %v", err)
 	}
 	// FindProgramAddress needs headroom for the bump seed.
-	if _, _, err := FindProgramAddress(many[:MaxSeeds], TokenProgramID); err != ErrMaxSeedLengthExceeded {
+	if _, _, err := TokenProgramID.FindProgramAddress(many[:MaxSeeds]); err != ErrMaxSeedLengthExceeded {
 		t.Fatalf("too many seeds incl. bump: %v", err)
 	}
 }
@@ -108,14 +108,14 @@ func TestIsOnCurve(t *testing.T) {
 		t.Fatal("ed25519 public key reported off-curve")
 	}
 	// PDAs are off the curve by construction.
-	ata, _, err := FindAssociatedTokenAddress(pdaWallet, pdaMint)
+	ata, _, err := pdaWallet.FindAssociatedTokenAddress(pdaMint)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if ata.IsOnCurve() {
 		t.Fatal("PDA reported on-curve")
 	}
-	if IsOnCurve([]byte{1, 2, 3}) {
+	if isOnCurve([]byte{1, 2, 3}) {
 		t.Fatal("short input reported on-curve")
 	}
 }
@@ -130,7 +130,7 @@ func BenchmarkFindProgramAddress(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		var err error
-		benchmarkPDA, benchmarkPDABump, err = FindProgramAddress(seeds, SPLAssociatedTokenAccountProgramID)
+		benchmarkPDA, benchmarkPDABump, err = SPLAssociatedTokenAccountProgramID.FindProgramAddress(seeds)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -142,7 +142,7 @@ func BenchmarkCreateProgramAddress(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		var err error
-		benchmarkPDA, err = CreateProgramAddress(seeds, TokenProgramID)
+		benchmarkPDA, err = TokenProgramID.CreateProgramAddress(seeds)
 		if err != nil {
 			b.Fatal(err)
 		}

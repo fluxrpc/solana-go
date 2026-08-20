@@ -181,7 +181,7 @@ func TestSendAndConfirmSubscribesBeforeSend(t *testing.T) {
 	}
 	defer wsClient.Close()
 
-	sig, err := SendAndConfirm(ctx, rpc.New(rpcMock.server.URL), wsClient, tx)
+	sig, err := New(rpc.New(rpcMock.server.URL), wsClient).SendAndConfirm(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestSendAndConfirmExecutionError(t *testing.T) {
 	}
 	defer wsClient.Close()
 
-	_, err = SendAndConfirm(ctx, rpc.New(rpcMock.server.URL), wsClient, tx)
+	_, err = New(rpc.New(rpcMock.server.URL), wsClient).SendAndConfirm(ctx, tx)
 	var execErr *ExecutionError
 	if !errors.As(err, &execErr) {
 		t.Fatalf("err = %v, want *ExecutionError", err)
@@ -227,7 +227,7 @@ func TestSendAndConfirmTimeout(t *testing.T) {
 	}
 	defer wsClient.Close()
 
-	_, err = SendAndConfirmWithOpts(ctx, rpc.New(rpcMock.server.URL), wsClient, tx, Opts{Timeout: 150 * time.Millisecond})
+	_, err = New(rpc.New(rpcMock.server.URL), wsClient).SendAndConfirmWithOpts(ctx, tx, Opts{Timeout: 150 * time.Millisecond})
 	if !errors.Is(err, ErrTimeout) {
 		t.Fatalf("err = %v, want ErrTimeout", err)
 	}
@@ -241,7 +241,7 @@ func TestSendAndConfirmPolling(t *testing.T) {
 		`{"slot":5,"confirmations":null,"err":null,"confirmationStatus":"finalized","status":{"Ok":null}}`,
 	)
 
-	sig, err := SendAndConfirmWithOpts(context.Background(), rpc.New(rpcMock.server.URL), nil, tx, Opts{
+	sig, err := New(rpc.New(rpcMock.server.URL), nil).SendAndConfirmWithOpts(context.Background(), tx, Opts{
 		PollInterval: 5 * time.Millisecond,
 	})
 	if err != nil {
@@ -261,7 +261,7 @@ func TestSendAndConfirmPollingLowerCommitment(t *testing.T) {
 	rpcMock := newMockRPC(t,
 		`{"slot":5,"confirmations":3,"err":null,"confirmationStatus":"confirmed","status":{"Ok":null}}`,
 	)
-	_, err := SendAndConfirmWithOpts(context.Background(), rpc.New(rpcMock.server.URL), nil, tx, Opts{
+	_, err := New(rpc.New(rpcMock.server.URL), nil).SendAndConfirmWithOpts(context.Background(), tx, Opts{
 		Commitment:   rpc.CommitmentConfirmed,
 		PollInterval: 5 * time.Millisecond,
 	})
@@ -278,7 +278,7 @@ func TestSendAndConfirmPollingExecutionError(t *testing.T) {
 	rpcMock := newMockRPC(t,
 		`{"slot":5,"confirmations":null,"err":{"InstructionError":[0,"InvalidArgument"]},"confirmationStatus":"finalized","status":{"Err":{}}}`,
 	)
-	_, err := SendAndConfirmWithOpts(context.Background(), rpc.New(rpcMock.server.URL), nil, tx, Opts{
+	_, err := New(rpc.New(rpcMock.server.URL), nil).SendAndConfirmWithOpts(context.Background(), tx, Opts{
 		PollInterval: 5 * time.Millisecond,
 	})
 	var execErr *ExecutionError
@@ -290,7 +290,7 @@ func TestSendAndConfirmPollingExecutionError(t *testing.T) {
 func TestSendAndConfirmPollingTimeout(t *testing.T) {
 	tx := signedTestTx(t)
 	rpcMock := newMockRPC(t, `null`)
-	_, err := SendAndConfirmWithOpts(context.Background(), rpc.New(rpcMock.server.URL), nil, tx, Opts{
+	_, err := New(rpc.New(rpcMock.server.URL), nil).SendAndConfirmWithOpts(context.Background(), tx, Opts{
 		Timeout:      100 * time.Millisecond,
 		PollInterval: 10 * time.Millisecond,
 	})
@@ -300,7 +300,10 @@ func TestSendAndConfirmPollingTimeout(t *testing.T) {
 }
 
 func TestSendAndConfirmUnsigned(t *testing.T) {
-	if _, err := SendAndConfirm(context.Background(), nil, nil, &solana.Transaction{}); err == nil {
+	if _, err := New(nil, nil).SendAndConfirm(context.Background(), nil); err == nil {
+		t.Fatal("expected nil transaction error")
+	}
+	if _, err := New(nil, nil).SendAndConfirm(context.Background(), &solana.Transaction{}); err == nil {
 		t.Fatal("expected error for unsigned transaction")
 	}
 }
@@ -324,8 +327,8 @@ func TestStatusReaches(t *testing.T) {
 	}
 	for i, tc := range cases {
 		status := &rpc.SignatureStatusesResult{ConfirmationStatus: tc.status, Confirmations: tc.conf}
-		if got := statusReaches(status, tc.target); got != tc.want {
-			t.Errorf("case %d: statusReaches = %v, want %v", i, got, tc.want)
+		if got := confirmationTarget(tc.target).reached(status); got != tc.want {
+			t.Errorf("case %d: confirmationTarget.reached = %v, want %v", i, got, tc.want)
 		}
 	}
 }

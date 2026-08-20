@@ -14,16 +14,35 @@ type Stream struct {
 	cancel context.CancelFunc
 }
 
+// Request owns a Yellowstone subscription request and its named filters.
+// The embedded protobuf request remains accessible for advanced filters not
+// covered by the convenience methods.
+type Request struct {
+	*pb.SubscribeRequest
+}
+
+// Update owns one Yellowstone stream update and provides conversion methods
+// for account and transaction payloads.
+type Update struct {
+	*pb.SubscribeUpdate
+}
+
+// NewUpdate wraps a raw Yellowstone protobuf update so its typed conversion
+// methods can be used outside a Stream.
+func NewUpdate(update *pb.SubscribeUpdate) *Update {
+	return &Update{SubscribeUpdate: update}
+}
+
 // Subscribe opens the bidi stream and sends req before returning, so the
 // first Recv already delivers filtered updates.
-func (c *Client) Subscribe(ctx context.Context, req *pb.SubscribeRequest) (*Stream, error) {
+func (c *Client) Subscribe(ctx context.Context, req *Request) (*Stream, error) {
 	ctx, cancel := context.WithCancel(c.withToken(ctx))
 	stream, err := c.geyser.Subscribe(ctx)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	if err := stream.Send(req); err != nil {
+	if err := stream.Send(req.SubscribeRequest); err != nil {
 		cancel()
 		return nil, err
 	}
@@ -31,15 +50,19 @@ func (c *Client) Subscribe(ctx context.Context, req *pb.SubscribeRequest) (*Stre
 }
 
 // Recv blocks for the next update. The returned update (including any
-// account data byte slices) is owned by the caller, but converters in this
-// package alias into it — see ConvertAccount.
-func (s *Stream) Recv() (*pb.SubscribeUpdate, error) {
-	return s.stream.Recv()
+// account data byte slices) is owned by the caller, but conversion methods
+// alias into it — see Update.Account.
+func (s *Stream) Recv() (*Update, error) {
+	update, err := s.stream.Recv()
+	if err != nil {
+		return nil, err
+	}
+	return NewUpdate(update), nil
 }
 
 // Update replaces the subscription's filters without reconnecting.
-func (s *Stream) Update(req *pb.SubscribeRequest) error {
-	return s.stream.Send(req)
+func (s *Stream) Update(req *Request) error {
+	return s.stream.Send(req.SubscribeRequest)
 }
 
 // Close ends the subscription; a pending Recv unblocks with an error.
@@ -51,8 +74,8 @@ func (s *Stream) Close() error {
 
 // NewRequest returns a SubscribeRequest at the given commitment with every
 // filter map initialized, ready for the Add* helpers below.
-func NewRequest(commitment pb.CommitmentLevel) *pb.SubscribeRequest {
-	return &pb.SubscribeRequest{
+func NewRequest(commitment pb.CommitmentLevel) *Request {
+	return &Request{SubscribeRequest: &pb.SubscribeRequest{
 		Accounts:           map[string]*pb.SubscribeRequestFilterAccounts{},
 		Slots:              map[string]*pb.SubscribeRequestFilterSlots{},
 		Transactions:       map[string]*pb.SubscribeRequestFilterTransactions{},
@@ -61,79 +84,102 @@ func NewRequest(commitment pb.CommitmentLevel) *pb.SubscribeRequest {
 		BlocksMeta:         map[string]*pb.SubscribeRequestFilterBlocksMeta{},
 		Entry:              map[string]*pb.SubscribeRequestFilterEntry{},
 		Commitment:         &commitment,
-	}
+	}}
 }
 
-// AddAccounts registers an accounts filter under name; updates matching it
-// carry name in SubscribeUpdate.Filters.
-func AddAccounts(req *pb.SubscribeRequest, name string, filter *pb.SubscribeRequestFilterAccounts) {
-	req.Accounts[name] = filter
+// AddAccounts registers an account filter under name. Matching updates carry
+// name in Update.Filters.
+func (r *Request) AddAccounts(name string, filter *pb.SubscribeRequestFilterAccounts) *Request {
+	r.Accounts[name] = filter
+	return r
 }
 
-// AddSlots registers a slots filter under name.
-func AddSlots(req *pb.SubscribeRequest, name string, filter *pb.SubscribeRequestFilterSlots) {
-	req.Slots[name] = filter
+// AccountsByOwner registers an account filter matching any owner key.
+func (r *Request) AccountsByOwner(name string, owners ...string) *Request {
+	return r.AddAccounts(name, &pb.SubscribeRequestFilterAccounts{Owner: owners})
 }
 
-// AddTransactions registers a transactions filter under name.
-func AddTransactions(req *pb.SubscribeRequest, name string, filter *pb.SubscribeRequestFilterTransactions) {
-	req.Transactions[name] = filter
+// AccountsByKey registers an account filter matching any account key.
+func (r *Request) AccountsByKey(name string, keys ...string) *Request {
+	return r.AddAccounts(name, &pb.SubscribeRequestFilterAccounts{Account: keys})
 }
 
-// AddBlocks registers a blocks filter under name.
-func AddBlocks(req *pb.SubscribeRequest, name string, filter *pb.SubscribeRequestFilterBlocks) {
-	req.Blocks[name] = filter
+// AddSlots registers a slot filter under name.
+func (r *Request) AddSlots(name string, filter *pb.SubscribeRequestFilterSlots) *Request {
+	r.Slots[name] = filter
+	return r
 }
 
-// AddBlocksMeta registers a block-meta filter under name.
-func AddBlocksMeta(req *pb.SubscribeRequest, name string, filter *pb.SubscribeRequestFilterBlocksMeta) {
-	req.BlocksMeta[name] = filter
+// AllSlots registers a filter matching every slot-status update.
+func (r *Request) AllSlots(name string) *Request {
+	return r.AddSlots(name, &pb.SubscribeRequestFilterSlots{})
 }
 
-// AddEntries registers an entries filter under name.
-func AddEntries(req *pb.SubscribeRequest, name string, filter *pb.SubscribeRequestFilterEntry) {
-	req.Entry[name] = filter
+// AddTransactions registers a transaction filter under name.
+func (r *Request) AddTransactions(name string, filter *pb.SubscribeRequestFilterTransactions) *Request {
+	r.Transactions[name] = filter
+	return r
 }
 
-// AccountsByOwner matches accounts owned by any of the base58 program keys.
-func AccountsByOwner(owners ...string) *pb.SubscribeRequestFilterAccounts {
-	return &pb.SubscribeRequestFilterAccounts{Owner: owners}
+// TransactionsByAccount registers a transaction filter matching any account.
+func (r *Request) TransactionsByAccount(name string, accounts ...string) *Request {
+	return r.AddTransactions(name, &pb.SubscribeRequestFilterTransactions{AccountInclude: accounts})
 }
 
-// AccountsByKey matches the given base58 account keys.
-func AccountsByKey(keys ...string) *pb.SubscribeRequestFilterAccounts {
-	return &pb.SubscribeRequestFilterAccounts{Account: keys}
+// TransactionsByAccountRequired registers a transaction filter that requires
+// every supplied account.
+func (r *Request) TransactionsByAccountRequired(name string, accounts ...string) *Request {
+	return r.AddTransactions(name, &pb.SubscribeRequestFilterTransactions{AccountRequired: accounts})
 }
 
-// TransactionsByAccount matches transactions that mention ANY of the given
-// base58 accounts (pb account_include semantics).
-func TransactionsByAccount(accounts ...string) *pb.SubscribeRequestFilterTransactions {
-	return &pb.SubscribeRequestFilterTransactions{AccountInclude: accounts}
+// AddTransactionStatuses registers a transaction-status filter under name.
+func (r *Request) AddTransactionStatuses(name string, filter *pb.SubscribeRequestFilterTransactions) *Request {
+	r.TransactionsStatus[name] = filter
+	return r
 }
 
-// TransactionsByAccountRequired matches transactions that mention ALL of the
-// given base58 accounts (pb account_required semantics).
-func TransactionsByAccountRequired(accounts ...string) *pb.SubscribeRequestFilterTransactions {
-	return &pb.SubscribeRequestFilterTransactions{AccountRequired: accounts}
+// TransactionStatusesByAccount registers a status-only filter matching any
+// supplied account.
+func (r *Request) TransactionStatusesByAccount(name string, accounts ...string) *Request {
+	return r.AddTransactionStatuses(name, &pb.SubscribeRequestFilterTransactions{AccountInclude: accounts})
 }
 
-// Slots matches every slot status update.
-func Slots() *pb.SubscribeRequestFilterSlots {
-	return &pb.SubscribeRequestFilterSlots{}
+// TransactionStatusesByAccountRequired registers a status-only filter that
+// requires every supplied account.
+func (r *Request) TransactionStatusesByAccountRequired(name string, accounts ...string) *Request {
+	return r.AddTransactionStatuses(name, &pb.SubscribeRequestFilterTransactions{AccountRequired: accounts})
 }
 
-// Blocks matches full blocks; with accounts given, only transactions
-// mentioning them are included (pb account_include semantics).
-func Blocks(accountInclude ...string) *pb.SubscribeRequestFilterBlocks {
-	return &pb.SubscribeRequestFilterBlocks{AccountInclude: accountInclude}
+// AddBlocks registers a full-block filter under name.
+func (r *Request) AddBlocks(name string, filter *pb.SubscribeRequestFilterBlocks) *Request {
+	r.Blocks[name] = filter
+	return r
 }
 
-// BlocksMeta matches block metadata (no transactions or accounts).
-func BlocksMeta() *pb.SubscribeRequestFilterBlocksMeta {
-	return &pb.SubscribeRequestFilterBlocksMeta{}
+// BlocksIncluding registers a block filter whose transactions mention any of
+// the supplied accounts. With no accounts it matches full blocks.
+func (r *Request) BlocksIncluding(name string, accounts ...string) *Request {
+	return r.AddBlocks(name, &pb.SubscribeRequestFilterBlocks{AccountInclude: accounts})
 }
 
-// Entries matches ledger entries.
-func Entries() *pb.SubscribeRequestFilterEntry {
-	return &pb.SubscribeRequestFilterEntry{}
+// AddBlocksMeta registers a block-metadata filter under name.
+func (r *Request) AddBlocksMeta(name string, filter *pb.SubscribeRequestFilterBlocksMeta) *Request {
+	r.BlocksMeta[name] = filter
+	return r
+}
+
+// AllBlocksMeta registers a filter matching all block metadata.
+func (r *Request) AllBlocksMeta(name string) *Request {
+	return r.AddBlocksMeta(name, &pb.SubscribeRequestFilterBlocksMeta{})
+}
+
+// AddEntries registers a ledger-entry filter under name.
+func (r *Request) AddEntries(name string, filter *pb.SubscribeRequestFilterEntry) *Request {
+	r.Entry[name] = filter
+	return r
+}
+
+// AllEntries registers a filter matching every ledger entry.
+func (r *Request) AllEntries(name string) *Request {
+	return r.AddEntries(name, &pb.SubscribeRequestFilterEntry{})
 }

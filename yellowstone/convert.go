@@ -50,14 +50,14 @@ func hashFromBytes(in []byte) (out solana.Hash) {
 	return
 }
 
-// ConvertTransaction rebuilds the SDK transaction and RPC-shaped meta from a
-// geyser transaction update.
-//
-// NOTE: for throughput, byte-slice fields (instruction data, log messages'
-// backing arrays, return data, the raw error) alias the pb buffers instead
-// of copying; do not retain them past the next Stream.Recv unless copied.
-func ConvertTransaction(u *pb.SubscribeUpdateTransaction) (*solana.Transaction, *rpc.TransactionMeta, error) {
-	info := u.GetTransaction()
+// Transaction converts this update's transaction payload into the core SDK's
+// transaction and metadata types. For throughput, byte-slice fields alias the
+// protobuf buffers; copy them before retaining them beyond subsequent receives.
+func (u *Update) Transaction() (*solana.Transaction, *rpc.TransactionMeta, error) {
+	if u == nil || u.SubscribeUpdate == nil {
+		return nil, nil, errors.New("yellowstone update has no transaction")
+	}
+	info := u.GetTransaction().GetTransaction()
 	if info == nil || info.Transaction == nil {
 		return nil, nil, errors.New("transaction update has no transaction")
 	}
@@ -284,12 +284,14 @@ type AccountUpdate struct {
 	IsStartup    bool
 }
 
-// ConvertAccount flattens a geyser account update.
-//
-// NOTE: Data aliases the pb buffer (no copy — throughput); do not retain it
-// past the next Stream.Recv unless copied.
-func ConvertAccount(u *pb.SubscribeUpdateAccount) *AccountUpdate {
-	info := u.GetAccount()
+// Account converts this update's account payload. The returned Data aliases
+// the protobuf buffer; copy it before retaining it beyond subsequent receives.
+func (u *Update) Account() *AccountUpdate {
+	if u == nil || u.SubscribeUpdate == nil {
+		return nil
+	}
+	account := u.GetAccount()
+	info := account.GetAccount()
 	if info == nil {
 		return nil
 	}
@@ -301,18 +303,12 @@ func ConvertAccount(u *pb.SubscribeUpdateAccount) *AccountUpdate {
 		RentEpoch:    info.RentEpoch,
 		Data:         info.Data,
 		WriteVersion: info.WriteVersion,
-		Slot:         u.Slot,
-		IsStartup:    u.IsStartup,
+		Slot:         account.Slot,
+		IsStartup:    account.IsStartup,
 	}
 	if len(info.TxnSignature) > 0 {
 		sig := solana.SignatureFromBytes(info.TxnSignature)
 		update.TxnSignature = &sig
 	}
 	return update
-}
-
-// ConvertBlockhash parses a base58 blockhash string as carried in geyser
-// responses (GetLatestBlockhash, block meta) into a solana.Hash.
-func ConvertBlockhash(blockhash string) (solana.Hash, error) {
-	return solana.HashFromBase58(blockhash)
 }

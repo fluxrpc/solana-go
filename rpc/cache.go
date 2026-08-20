@@ -75,7 +75,7 @@ func (c *Client) EnableCache() {
 
 // EnableCacheWithOpts is EnableCache with explicit cache settings.
 func (c *Client) EnableCacheWithOpts(opts *CacheOptions) {
-	newCacheState := newAccountCache(opts)
+	newCacheState := opts.newAccountCache()
 	if old := c.cache.Swap(newCacheState); old != nil {
 		old.stop()
 	}
@@ -262,7 +262,7 @@ type accountCache struct {
 	commitment   CommitmentType
 
 	// head holds streamed chain-head data per commitment level, indexed by
-	// commitmentIndex.
+	// CommitmentType.cacheIndex.
 	headMu sync.RWMutex
 	head   [3]headState
 
@@ -297,7 +297,7 @@ func (e *cacheEntry) fresh(now int64, freshFor time.Duration) bool {
 	return e.streamed || e.immutable || now-e.cachedAt < int64(freshFor)
 }
 
-func newAccountCache(opts *CacheOptions) *accountCache {
+func (opts *CacheOptions) newAccountCache() *accountCache {
 	cache := &accountCache{
 		freshFor:     DefaultCacheFreshFor,
 		headFreshFor: DefaultCacheHeadFreshFor,
@@ -484,9 +484,9 @@ type headState struct {
 	blockhashAt          int64
 }
 
-// commitmentIndex maps a commitment level to its head slot; the empty
+// cacheIndex maps a commitment level to its head slot; the empty
 // commitment maps to finalized, matching the RPC method defaults.
-func commitmentIndex(commitment CommitmentType) int {
+func (commitment CommitmentType) cacheIndex() int {
 	switch commitment {
 	case CommitmentProcessed:
 		return 0
@@ -500,7 +500,7 @@ func commitmentIndex(commitment CommitmentType) int {
 }
 
 func (ac *accountCache) storeSlot(commitment CommitmentType, slot uint64) {
-	idx := commitmentIndex(commitment)
+	idx := commitment.cacheIndex()
 	if idx < 0 {
 		return
 	}
@@ -514,7 +514,7 @@ func (ac *accountCache) storeSlot(commitment CommitmentType, slot uint64) {
 }
 
 func (ac *accountCache) storeBlockHeight(commitment CommitmentType, height uint64) {
-	idx := commitmentIndex(commitment)
+	idx := commitment.cacheIndex()
 	if idx < 0 {
 		return
 	}
@@ -528,7 +528,7 @@ func (ac *accountCache) storeBlockHeight(commitment CommitmentType, height uint6
 }
 
 func (ac *accountCache) storeBlockhash(commitment CommitmentType, hash solana.Hash, lastValidBlockHeight, slot uint64) {
-	idx := commitmentIndex(commitment)
+	idx := commitment.cacheIndex()
 	if idx < 0 {
 		return
 	}
@@ -544,7 +544,7 @@ func (ac *accountCache) storeBlockhash(commitment CommitmentType, hash solana.Ha
 }
 
 func (ac *accountCache) lookupSlot(commitment CommitmentType) (uint64, bool) {
-	idx := commitmentIndex(commitment)
+	idx := commitment.cacheIndex()
 	if idx < 0 {
 		return 0, false
 	}
@@ -561,7 +561,7 @@ func (ac *accountCache) lookupSlot(commitment CommitmentType) (uint64, bool) {
 }
 
 func (ac *accountCache) lookupBlockHeight(commitment CommitmentType) (uint64, bool) {
-	idx := commitmentIndex(commitment)
+	idx := commitment.cacheIndex()
 	if idx < 0 {
 		return 0, false
 	}
@@ -578,7 +578,7 @@ func (ac *accountCache) lookupBlockHeight(commitment CommitmentType) (uint64, bo
 }
 
 func (ac *accountCache) lookupBlockhash(commitment CommitmentType) (*GetLatestBlockhashResult, bool) {
-	idx := commitmentIndex(commitment)
+	idx := commitment.cacheIndex()
 	if idx < 0 {
 		return nil, false
 	}

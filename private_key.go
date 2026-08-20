@@ -155,7 +155,7 @@ func (k PrivateKey) Validate() error {
 	}
 	derived := voied25519.NewKeyFromSeed(k[:ed25519.SeedSize])
 	if !bytes.Equal(derived, []byte(k)) {
-		if !IsOnCurve(k[ed25519.SeedSize:]) {
+		if !isOnCurve(k[ed25519.SeedSize:]) {
 			return errors.New("invalid private key: seed/public key mismatch (public key half is not on the ed25519 curve)")
 		}
 		return errors.New("invalid private key: seed/public key mismatch")

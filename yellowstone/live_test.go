@@ -57,7 +57,7 @@ func TestLiveYellowstone(t *testing.T) {
 	t.Logf("slot: %d", slot.Slot)
 
 	req := NewRequest(pb.CommitmentLevel_PROCESSED)
-	AddSlots(req, "slots", Slots())
+	req.AllSlots("slots")
 	stream, err := client.Subscribe(ctx, req)
 	if err != nil {
 		t.Fatal(err)

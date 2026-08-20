@@ -46,8 +46,8 @@ key, err = solana.PrivateKeyFromSeed(seed) // 32-byte ed25519 seed
 fmt.Println(key.PublicKey()) // reads the stored public half, ~3ns
 
 // Zero-allocation PDA derivation.
-pda, bump, err := solana.FindProgramAddress(seeds, programID)
-ata, bump, err := solana.FindAssociatedTokenAddress(wallet, usdcMint)
+pda, bump, err := programID.FindProgramAddress(seeds)
+ata, bump, err := wallet.FindAssociatedTokenAddress(usdcMint)
 ```
 
 ### Build, sign and send a transaction
@@ -64,8 +64,8 @@ binary.LittleEndian.PutUint64(data[4:], 1_000_000)
 ix := solana.NewInstruction(
 	solana.SystemProgramID,
 	solana.AccountMetaSlice{
-		solana.Meta(payer.PublicKey()).SIGNER().WRITE(),
-		solana.Meta(recipient).WRITE(),
+		payer.PublicKey().Meta().SIGNER().WRITE(),
+		recipient.Meta().WRITE(),
 	},
 	data,
 )
@@ -103,7 +103,8 @@ import "github.com/fluxrpc/solana-go/confirm"
 
 // With a ws client the signature subscription is armed BEFORE the send,
 // so the confirmation can never be missed; pass nil to poll over RPC.
-sig, err := confirm.SendAndConfirm(ctx, client, wsClient, tx)
+confirmer := confirm.New(client, wsClient)
+sig, err := confirmer.SendAndConfirm(ctx, tx)
 
 var execErr *confirm.ExecutionError
 if errors.As(err, &execErr) {
@@ -184,9 +185,9 @@ client, err := yellowstone.Connect(ctx, "https://your-geyser:443",
 	yellowstone.WithToken("..."))
 defer client.Close()
 
-req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED)
-yellowstone.AddAccounts(req, "usdc", yellowstone.AccountsByOwner(tokenProgram.String()))
-yellowstone.AddSlots(req, "slots", yellowstone.Slots())
+req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED).
+	AccountsByOwner("usdc", tokenProgram.String()).
+	AllSlots("slots")
 stream, err := client.Subscribe(ctx, req)
 defer stream.Close()
 
@@ -195,8 +196,8 @@ for {
 	if err != nil {
 		return err
 	}
-	if account := update.GetAccount(); account != nil {
-		converted := yellowstone.ConvertAccount(account)
+	if update.GetAccount() != nil {
+		converted := update.Account()
 		process(converted)
 	}
 }
@@ -204,7 +205,7 @@ for {
 
 Filters cover accounts, slots, transactions, blocks, block metadata, and
 entries. `Stream.Update` replaces filters without reconnecting.
-`ConvertTransaction` and `ConvertAccount` map protobuf updates into this SDK's
+`Update.Transaction` and `Update.Account` map protobuf updates into this SDK's
 types; converted transactions re-serialize byte-identical to the on-chain wire
 form. See the [Yellowstone client guide](yellowstone/README.md) for complete
 examples, connection options, unary calls, and piping realtime updates into
@@ -219,8 +220,8 @@ client := rpc.New(endpoint)
 client.EnableCache() // defaults: 800ms freshness, processed commitment; EnableCacheWithOpts to tune
 
 // Mirror accounts, slots and block metadata into the cache...
-stream, _ := ys.Subscribe(ctx, req) // yellowstone subscription: account filters + Slots() + BlocksMeta()
-go yellowstone.Pipe(stream, rpc.CommitmentConfirmed, client)
+stream, _ := ys.Subscribe(ctx, req) // request owns account, slot and block-meta filters
+go stream.Pipe(rpc.CommitmentConfirmed, client)
 
 // ...and these are all served locally:
 account, _ := client.GetAccountInfo(ctx, watchedKey)
@@ -300,13 +301,13 @@ On a loopback end-to-end benchmark (`BenchmarkConfirm_SendAndConfirm`: connect, 
 
 ### Yellowstone (gRPC Geyser)
 
-The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go get github.com/fluxrpc/solana-go/yellowstone`), so its gRPC/protobuf dependency tree never touches the core SDK. It wraps the Geyser protocol: `Connect` with `x-token` auth, TLS auto-detection, tuned keepalive and a 1GB receive limit; `Subscribe` with live filter updates and thin filter builders; unary `Ping`/`GetVersion`/`GetSlot`/`GetLatestBlockhash`/`GetBlockHeight`/`IsBlockhashValid`; and allocation-light converters from geyser protobuf into this SDK's types — converted transactions re-serialize byte-identical and pass signature verification.
+The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go get github.com/fluxrpc/solana-go/yellowstone`), so its gRPC/protobuf dependency tree never touches the core SDK. It wraps the Geyser protocol: `Connect` with `x-token` auth, TLS auto-detection, tuned keepalive and a 1GB receive limit; `Request` methods for fluent filters; `Stream` methods for receiving, live updates and cache piping; unary `Ping`/`GetVersion`/`GetSlot`/`GetLatestBlockhash`/`GetBlockHeight`/`IsBlockhashValid`; and allocation-light conversion methods on each `Update` — converted transactions re-serialize byte-identical and pass signature verification.
 
 | benchmark (bufconn, i7-9700K) | result |
 |---|---:|
 | subscribe throughput (incl. account conversion) | ~600k updates/sec |
-| `ConvertTransaction` | 375 ns/op, 7 allocs |
-| `ConvertAccount` | 55 ns/op, 1 alloc |
+| `Update.Transaction` | 375 ns/op, 7 allocs |
+| `Update.Account` | 55 ns/op, 1 alloc |
 
 ### Account cache
 

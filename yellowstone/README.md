@@ -41,10 +41,9 @@ func main() {
 	}
 	defer client.Close()
 
-	req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED)
-	yellowstone.AddAccounts(req, "token-accounts",
-		yellowstone.AccountsByOwner("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"))
-	yellowstone.AddSlots(req, "slots", yellowstone.Slots())
+	req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED).
+		AccountsByOwner("token-accounts", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").
+		AllSlots("slots")
 
 	stream, err := client.Subscribe(ctx, req)
 	if err != nil {
@@ -57,8 +56,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if account := update.GetAccount(); account != nil {
-			converted := yellowstone.ConvertAccount(account)
+		if update.GetAccount() != nil {
+			converted := update.Account()
 			log.Printf("account=%s slot=%d lamports=%d",
 				converted.Pubkey, converted.Slot, converted.Lamports)
 		}
@@ -72,22 +71,19 @@ metadata on unary and streaming calls.
 
 ## Subscription filters
 
-`NewRequest` initializes every Yellowstone filter map. Add named filters with
-the provided helpers:
+`NewRequest` initializes every Yellowstone filter map. Fluent methods keep
+filter construction attached to the request they mutate:
 
 ```go
-req := yellowstone.NewRequest(pb.CommitmentLevel_PROCESSED)
-
-yellowstone.AddAccounts(req, "wallets",
-	yellowstone.AccountsByKey(walletA.String(), walletB.String()))
-yellowstone.AddAccounts(req, "program",
-	yellowstone.AccountsByOwner(programID.String()))
-yellowstone.AddTransactions(req, "transactions",
-	yellowstone.TransactionsByAccount(walletA.String()))
-yellowstone.AddSlots(req, "slots", yellowstone.Slots())
-yellowstone.AddBlocks(req, "blocks", yellowstone.Blocks(programID.String()))
-yellowstone.AddBlocksMeta(req, "block-meta", yellowstone.BlocksMeta())
-yellowstone.AddEntries(req, "entries", yellowstone.Entries())
+req := yellowstone.NewRequest(pb.CommitmentLevel_PROCESSED).
+	AccountsByKey("wallets", walletA.String(), walletB.String()).
+	AccountsByOwner("program", programID.String()).
+	TransactionsByAccount("transactions", walletA.String()).
+	TransactionStatusesByAccount("transaction-status", walletA.String()).
+	AllSlots("slots").
+	BlocksIncluding("blocks", programID.String()).
+	AllBlocksMeta("block-meta").
+	AllEntries("entries")
 ```
 
 The helper API covers accounts, slots, transactions, blocks, block metadata,
@@ -98,9 +94,8 @@ transaction vote/failed/signature filters, and transaction-status streams.
 Replace filters on an active bidirectional stream without reconnecting:
 
 ```go
-next := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED)
-yellowstone.AddAccounts(next, "new-program",
-	yellowstone.AccountsByOwner(newProgramID.String()))
+next := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED).
+	AccountsByOwner("new-program", newProgramID.String())
 if err := stream.Update(next); err != nil {
 	return err
 }
@@ -113,11 +108,11 @@ Converters bridge Geyser protobuf updates to the core SDK:
 ```go
 switch {
 case update.GetAccount() != nil:
-	account := yellowstone.ConvertAccount(update.GetAccount())
+	account := update.Account()
 	// account.Pubkey, Owner, Lamports, Data, Slot, WriteVersion, ...
 
 case update.GetTransaction() != nil:
-	tx, meta, err := yellowstone.ConvertTransaction(update.GetTransaction())
+	tx, meta, err := update.Transaction()
 	if err != nil {
 		return err
 	}
@@ -127,12 +122,12 @@ case update.GetTransaction() != nil:
 ```
 
 Converted transactions use `solana.Transaction` and re-serialize
-byte-identically to the on-chain wire transaction. `ConvertTransaction` also
+byte-identically to the on-chain wire transaction. `Update.Transaction` also
 returns the full `rpc.TransactionMeta`, including balances, logs, inner
 instructions, token balances, rewards, loaded addresses, return data, compute
 units, and cost units.
 
-For throughput, `ConvertAccount` aliases the protobuf account-data buffer. Copy
+For throughput, `Update.Account` aliases the protobuf account-data buffer. Copy
 the data if it must be retained after receiving subsequent stream messages.
 The cache pipe described below performs that copy automatically.
 
@@ -146,18 +141,17 @@ block-height, and blockhash reads are served locally:
 rpcClient := rpc.New("https://your-json-rpc")
 rpcClient.EnableCache()
 
-req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED)
-yellowstone.AddAccounts(req, "watched",
-	yellowstone.AccountsByOwner(programID.String()))
-yellowstone.AddSlots(req, "slots", yellowstone.Slots())
-yellowstone.AddBlocksMeta(req, "blocks", yellowstone.BlocksMeta())
+req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED).
+	AccountsByOwner("watched", programID.String()).
+	AllSlots("slots").
+	AllBlocksMeta("blocks")
 
 stream, err := geyserClient.Subscribe(ctx, req)
 if err != nil {
 	return err
 }
 go func() {
-	if err := yellowstone.Pipe(stream, rpc.CommitmentConfirmed, rpcClient); err != nil {
+	if err := stream.Pipe(rpc.CommitmentConfirmed, rpcClient); err != nil {
 		log.Printf("Yellowstone stream ended: %v", err)
 	}
 }()

@@ -26,7 +26,8 @@ func (c *Client) AccountSubscribeWithOpts(ctx context.Context, account solana.Pu
 	if commitment != "" {
 		opts["commitment"] = commitment
 	}
-	return subscribe[AccountResult](ctx, c, "accountSubscribe", "accountUnsubscribe", []any{account, opts})
+	sub, err := c.subscribe(ctx, "accountSubscribe", "accountUnsubscribe", []any{account, opts})
+	return (*Subscription[AccountResult])(sub), err
 }
 
 // ProgramResult is a programNotification payload.
@@ -50,5 +51,6 @@ func (c *Client) ProgramSubscribeWithOpts(ctx context.Context, program solana.Pu
 	if len(filters) > 0 {
 		opts["filters"] = filters
 	}
-	return subscribe[ProgramResult](ctx, c, "programSubscribe", "programUnsubscribe", []any{program, opts})
+	sub, err := c.subscribe(ctx, "programSubscribe", "programUnsubscribe", []any{program, opts})
+	return (*Subscription[ProgramResult])(sub), err
 }

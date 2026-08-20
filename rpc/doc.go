@@ -11,11 +11,12 @@
 //	account, err := client.GetAccountInfo(ctx, pubkey)
 //	slot, err := client.GetSlot(ctx, rpc.CommitmentFinalized)
 //
-// Methods that look up a single item (GetAccountInfo, GetTransaction,
-// GetBlock, GetParsedTransaction) return [ErrNotFound] when the RPC result
-// is null. Methods with multi-field configuration have a WithOpts variant
-// or accept an options struct directly; convenience forms use pragmatic
-// defaults, notably
+// Methods that look up a nullable item—including GetAccountInfo,
+// GetTransaction, GetParsedTransaction, GetBlock, GetParsedBlock,
+// GetBlockTime and GetLeaderSchedule—return [ErrNotFound] when the RPC
+// result is null. Methods with multi-field configuration have a WithOpts
+// variant or accept an options struct directly; convenience forms use
+// pragmatic defaults, notably
 // maxSupportedTransactionVersion=0 so versioned transactions decode out of
 // the box. Use [Client.SetHeader] for authenticated endpoints.
 //
@@ -39,7 +40,7 @@
 // slot or an expiring blockhash.
 //
 //	client.EnableCache()
-//	go yellowstone.Pipe(stream, rpc.CommitmentConfirmed, client)
+//	go stream.Pipe(rpc.CommitmentConfirmed, client)
 //
 // # Streaming getProgramAccounts
 //
@@ -57,6 +58,17 @@
 // only where the wire format demands them (DataBytesOrJSON,
 // TransactionVersion, the transaction envelopes, and public-key-keyed
 // maps).
+//
+// # FluxRPC extensions
+//
+// In addition to the standard Solana JSON-RPC surface, [Client] includes
+// FluxRPC's indexed and fee-market methods:
+// [Client.GetTransactionsForAddress],
+// [Client.GetParsedTransactionsForAddress],
+// [Client.GetPriorityFeeEstimate], [Client.GetTokenAccounts],
+// [Client.GetTokenAccountsCount] and [Client.GetUpcomingLeaders]. Their
+// request and response types retain the FluxRPC-specific filters, cursors,
+// token-transfer fields, fee levels and leader metadata.
 //
 // # Conformance
 //

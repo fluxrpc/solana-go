@@ -323,18 +323,24 @@ func (c *Client) request(ctx context.Context, method string, params []any, entry
 	}
 }
 
-// Subscription is a live subscription delivering notifications of type T.
-type Subscription[T any] struct {
+// subscription holds the transport state shared by every typed subscription.
+type subscription struct {
 	client      *Client
 	id          uint64
 	unsubMethod string
 	entry       *subEntry
 }
 
+// Subscription is a live subscription delivering notifications of type T.
+// Its underlying transport state is created by Client.subscribe; the defined
+// generic type adds compile-time notification decoding without requiring a
+// package-level generic helper.
+type Subscription[T any] subscription
+
 // subscribe issues the subscribe request; the read loop registers the
 // notification channel the instant the ack arrives, so no notification
 // delivered after the ack is ever missed.
-func subscribe[T any](ctx context.Context, c *Client, method, unsubMethod string, params []any) (*Subscription[T], error) {
+func (c *Client) subscribe(ctx context.Context, method, unsubMethod string, params []any) (*subscription, error) {
 	entry := &subEntry{ch: make(chan []byte, c.buffer)}
 	result, err := c.request(ctx, method, params, entry)
 	if err != nil {
@@ -344,7 +350,7 @@ func subscribe[T any](ctx context.Context, c *Client, method, unsubMethod string
 	if err := sonic.Unmarshal(result, &subID); err != nil {
 		return nil, fmt.Errorf("%s: unexpected subscription id %s", method, result)
 	}
-	return &Subscription[T]{client: c, id: subID, unsubMethod: unsubMethod, entry: entry}, nil
+	return &subscription{client: c, id: subID, unsubMethod: unsubMethod, entry: entry}, nil
 }
 
 // Recv returns the next notification, decoded on the caller's goroutine.

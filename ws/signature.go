@@ -57,5 +57,6 @@ func (c *Client) SignatureSubscribeWithOpts(ctx context.Context, signature solan
 	if len(opts) > 0 {
 		params = append(params, opts)
 	}
-	return subscribe[SignatureResult](ctx, c, "signatureSubscribe", "signatureUnsubscribe", params)
+	sub, err := c.subscribe(ctx, "signatureSubscribe", "signatureUnsubscribe", params)
+	return (*Subscription[SignatureResult])(sub), err
 }
