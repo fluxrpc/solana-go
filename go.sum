@@ -9,8 +9,8 @@ github.com/cloudwego/base64x v0.1.7/go.mod h1:Cu1PV9zfrSf7ET2tIbWbbEy7jO7HHJ13q4
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/fluxrpc/base58 v1.1.0 h1:jSE3nLhejrkZkMY5Tgyhvvzm1H9WN9NA5OhmSWznmaY=
-github.com/fluxrpc/base58 v1.1.0/go.mod h1:lHCDrkJr1/MZuOnpfPE6a5DLhgvj5YzgVzOD18j9K50=
+github.com/fluxrpc/base58 v1.2.0 h1:/BKqSC9I7KfhoJOcUVw2mZOlF22WvgZYoHqD3U9YPu0=
+github.com/fluxrpc/base58 v1.2.0/go.mod h1:lHCDrkJr1/MZuOnpfPE6a5DLhgvj5YzgVzOD18j9K50=
 github.com/gobwas/httphead v0.1.0 h1:exrUm0f4YX0L7EBwZHuCF4GDp8aJfVeBrlLQrs6NqWU=
 github.com/gobwas/httphead v0.1.0/go.mod h1:O/RXo79gxV8G+RqlR/otEwx4Q36zl9rqC5u12GKvMCM=
 github.com/gobwas/pool v0.2.1 h1:xfeeEhW7pwmX8nuLVlqbzVc7udMDrwetjEv+TZIz1og=

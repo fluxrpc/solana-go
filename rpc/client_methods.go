@@ -102,11 +102,32 @@ func (c *Client) GetProgramAccounts(ctx context.Context, program solana.PublicKe
 // (filters, encoding, data slice, commitment). For very large result sets
 // consider GetProgramAccountsStream instead.
 func (c *Client) GetProgramAccountsWithOpts(ctx context.Context, program solana.PublicKey, opts *GetProgramAccountsOpts) (GetProgramAccountsResult, error) {
+	if opts != nil && opts.WithContext != nil && *opts.WithContext {
+		result, err := c.GetProgramAccountsWithContext(ctx, program, opts)
+		if err != nil {
+			return nil, err
+		}
+		return result.Value, nil
+	}
 	params := []any{program}
 	if opts != nil {
 		params = append(params, opts)
 	}
 	return call[GetProgramAccountsResult](ctx, c, "getProgramAccounts", params...)
+}
+
+// GetProgramAccountsWithContext returns the context-wrapped form of
+// getProgramAccounts. The caller's options are copied before withContext is
+// enabled.
+func (c *Client) GetProgramAccountsWithContext(ctx context.Context, program solana.PublicKey, opts *GetProgramAccountsOpts) (*GetProgramAccountsWithContextResult, error) {
+	withContext := true
+	requestOpts := GetProgramAccountsOpts{WithContext: &withContext}
+	if opts != nil {
+		requestOpts = *opts
+		requestOpts.WithContext = &withContext
+	}
+	result, err := call[GetProgramAccountsWithContextResult](ctx, c, "getProgramAccounts", program, &requestOpts)
+	return &result, err
 }
 
 // GetLargestAccounts returns the 20 largest accounts by lamport balance via
@@ -163,12 +184,15 @@ func (c *Client) GetBlockWithOpts(ctx context.Context, slot uint64, opts *GetBlo
 
 // GetParsedBlock fetches the block with jsonParsed encoding.
 func (c *Client) GetParsedBlock(ctx context.Context, slot uint64, opts *GetBlockOpts) (*GetParsedBlockResult, error) {
+	requestOpts := GetBlockOpts{}
 	if opts == nil {
 		version := uint64(0)
-		opts = &GetBlockOpts{MaxSupportedTransactionVersion: &version}
+		requestOpts.MaxSupportedTransactionVersion = &version
+	} else {
+		requestOpts = *opts
 	}
-	opts.Encoding = solana.EncodingJSONParsed
-	params := []any{slot, opts}
+	requestOpts.Encoding = solana.EncodingJSONParsed
+	params := []any{slot, &requestOpts}
 	return callNullable[GetParsedBlockResult](ctx, c, "getBlock", params...)
 }
 
@@ -231,7 +255,11 @@ func (c *Client) GetBlockProductionWithOpts(ctx context.Context, opts *GetBlockP
 // GetBlockTime returns the estimated production time of the block at the
 // given slot via getBlockTime.
 func (c *Client) GetBlockTime(ctx context.Context, slot uint64) (solana.UnixTimeSeconds, error) {
-	return call[solana.UnixTimeSeconds](ctx, c, "getBlockTime", slot)
+	result, err := callNullable[solana.UnixTimeSeconds](ctx, c, "getBlockTime", slot)
+	if err != nil {
+		return 0, err
+	}
+	return *result, nil
 }
 
 // GetBlocks returns the confirmed blocks between startSlot and endSlot
@@ -424,6 +452,9 @@ func (c *Client) SimulateTransactionWithOpts(ctx context.Context, tx *solana.Tra
 		}
 		if opts.ReplaceRecentBlockhash {
 			obj["replaceRecentBlockhash"] = true
+		}
+		if opts.InnerInstructions {
+			obj["innerInstructions"] = true
 		}
 		if opts.Accounts != nil {
 			obj["accounts"] = opts.Accounts
@@ -775,7 +806,11 @@ func (c *Client) GetLeaderScheduleWithOpts(ctx context.Context, opts *GetLeaderS
 			params = append(params, obj)
 		}
 	}
-	return call[GetLeaderScheduleResult](ctx, c, "getLeaderSchedule", params...)
+	result, err := callNullable[GetLeaderScheduleResult](ctx, c, "getLeaderSchedule", params...)
+	if err != nil {
+		return nil, err
+	}
+	return *result, nil
 }
 
 // GetVoteAccounts returns the current and delinquent vote accounts via
@@ -848,10 +883,10 @@ func (c *Client) GetTokenAccountsByDelegate(ctx context.Context, delegate solana
 }
 
 func (c *Client) getTokenAccountsBy(ctx context.Context, method string, key solana.PublicKey, config *GetTokenAccountsConfig, opts *GetTokenAccountsOpts) (*GetTokenAccountsResult, error) {
-	params := []any{key}
-	if config != nil {
-		params = append(params, config)
+	if err := config.Validate(); err != nil {
+		return nil, err
 	}
+	params := []any{key, config}
 	if opts != nil {
 		params = append(params, opts)
 	}
@@ -870,5 +905,65 @@ func (c *Client) GetTokenLargestAccounts(ctx context.Context, mint solana.Public
 // getTokenSupply. Commitment "" uses the node default.
 func (c *Client) GetTokenSupply(ctx context.Context, mint solana.PublicKey, commitment CommitmentType) (*GetTokenSupplyResult, error) {
 	result, err := call[GetTokenSupplyResult](ctx, c, "getTokenSupply", withCommitment([]any{mint}, commitment)...)
+	return &result, err
+}
+
+// --- FluxRPC extensions ---
+
+// GetTransactionsForAddress returns transactions involving address using
+// FluxRPC's indexed transaction-history endpoint.
+func (c *Client) GetTransactionsForAddress(ctx context.Context, address solana.PublicKey, opts *GetTransactionsForAddressOpts) (*GetTransactionsForAddressResult, error) {
+	params := []any{address}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[GetTransactionsForAddressResult](ctx, c, "getTransactionsForAddress", params...)
+	return &result, err
+}
+
+// GetParsedTransactionsForAddress returns full transaction history with
+// jsonParsed transactions and metadata. The caller's options are copied.
+func (c *Client) GetParsedTransactionsForAddress(ctx context.Context, address solana.PublicKey, opts *GetTransactionsForAddressOpts) (*GetParsedTransactionsForAddressResult, error) {
+	requestOpts := GetTransactionsForAddressOpts{}
+	if opts != nil {
+		requestOpts = *opts
+	}
+	requestOpts.TransactionDetails = TransactionDetailsFull
+	requestOpts.Encoding = solana.EncodingJSONParsed
+	result, err := call[GetParsedTransactionsForAddressResult](ctx, c, "getTransactionsForAddress", address, &requestOpts)
+	return &result, err
+}
+
+// GetPriorityFeeEstimate estimates a compute-unit price using FluxRPC's local
+// fee-market history.
+func (c *Client) GetPriorityFeeEstimate(ctx context.Context, request GetPriorityFeeEstimateRequest) (*GetPriorityFeeEstimateResult, error) {
+	result, err := call[GetPriorityFeeEstimateResult](ctx, c, "getPriorityFeeEstimate", request)
+	return &result, err
+}
+
+// GetTokenAccounts returns FluxRPC's holder-index entries for a token mint.
+// A nil opts performs a full scan; a non-nil Limit requests one page.
+func (c *Client) GetTokenAccounts(ctx context.Context, mint solana.PublicKey, opts *GetTokenAccountsIndexOpts) (*GetTokenAccountsIndexResult, error) {
+	params := []any{mint}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	result, err := call[GetTokenAccountsIndexResult](ctx, c, "getTokenAccounts", params...)
+	return &result, err
+}
+
+// GetTokenAccountsCount returns FluxRPC's indexed token-account count for a
+// mint.
+func (c *Client) GetTokenAccountsCount(ctx context.Context, mint solana.PublicKey, opts *GetTokenAccountsCountOpts) (uint64, error) {
+	params := []any{mint}
+	if opts != nil {
+		params = append(params, opts)
+	}
+	return call[uint64](ctx, c, "getTokenAccountsCount", params...)
+}
+
+// GetUpcomingLeaders returns the next amount leader groups from FluxRPC.
+func (c *Client) GetUpcomingLeaders(ctx context.Context, amount uint64) (*GetUpcomingLeadersResult, error) {
+	result, err := call[GetUpcomingLeadersResult](ctx, c, "getUpcomingLeaders", amount)
 	return &result, err
 }

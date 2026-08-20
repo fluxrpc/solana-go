@@ -238,14 +238,14 @@ func TestClientExistingOptionsArePlumbed(t *testing.T) {
 		client, ts := newTestClient(t)
 		ts.serveRaw(t, `{"context":{"slot":1},"value":{"amount":"1","decimals":0,"uiAmount":1,"uiAmountString":"1"}}`)
 		_, err := client.GetTokenAccountBalanceWithOpts(ctx, solana.PublicKey{7}, &GetTokenAccountBalanceOpts{
-			Commitment: CommitmentConfirmed, MinContextSlot: &minSlot,
+			Commitment: CommitmentConfirmed,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		requireLastRequest(t, ts, "getTokenAccountBalance", `[
 			"UKrXU5bFrTzrqqpZXs8GVDbp4xPweiM65ADXNAy3ddR",
-			{"commitment":"confirmed","minContextSlot":456}
+			{"commitment":"confirmed"}
 		]`)
 	})
 }

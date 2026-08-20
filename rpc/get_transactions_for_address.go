@@ -1,6 +1,9 @@
 package rpc
 
 import (
+	"bytes"
+	"encoding/json"
+
 	solana "github.com/fluxrpc/solana-go"
 )
 
@@ -33,6 +36,14 @@ type GetTransactionsForAddressOpts struct {
 	// (optional) Cursor returned as PaginationToken by a previous response,
 	// in the "slot:position" format, used to fetch the next page.
 	PaginationToken string `json:"paginationToken,omitempty"`
+
+	// Before requests transactions older than this signature. This is
+	// supported by FluxRPC's rpc_shard compatibility endpoint.
+	Before *solana.Signature `json:"before,omitempty"`
+
+	// Until requests transactions newer than this signature. This is
+	// supported by FluxRPC's rpc_shard compatibility endpoint.
+	Until *solana.Signature `json:"until,omitempty"`
 
 	// (optional) Commitment; "processed" is not supported.
 	// If not provided, the default is "finalized".
@@ -163,6 +174,23 @@ type GetTransactionsForAddressResult struct {
 	PaginationToken *string `json:"paginationToken"`
 }
 
+// UnmarshalJSON accepts both FluxRPC response generations: the documented
+// {data,paginationToken} object and rpc_shard's legacy top-level array.
+func (r *GetTransactionsForAddressResult) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if len(data) > 0 && data[0] == '[' {
+		var transactions []*TransactionForAddress
+		if err := json.Unmarshal(data, &transactions); err != nil {
+			return err
+		}
+		r.Data = transactions
+		r.PaginationToken = nil
+		return nil
+	}
+	type plain GetTransactionsForAddressResult
+	return json.Unmarshal(data, (*plain)(r))
+}
+
 // TransactionForAddress is a single entry of a getTransactionsForAddress response.
 // Which fields are populated depends on the requested TransactionDetails level.
 type TransactionForAddress struct {
@@ -198,4 +226,43 @@ type TransactionForAddress struct {
 
 	// Transaction status metadata object.
 	Meta *TransactionMeta `json:"meta,omitempty"`
+}
+
+// GetParsedTransactionsForAddressResult is the jsonParsed form of
+// GetTransactionsForAddressResult.
+type GetParsedTransactionsForAddressResult struct {
+	Data            []*ParsedTransactionForAddress `json:"data"`
+	PaginationToken *string                        `json:"paginationToken"`
+}
+
+// UnmarshalJSON accepts both the documented object response and rpc_shard's
+// legacy top-level array.
+func (r *GetParsedTransactionsForAddressResult) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if len(data) > 0 && data[0] == '[' {
+		var transactions []*ParsedTransactionForAddress
+		if err := json.Unmarshal(data, &transactions); err != nil {
+			return err
+		}
+		r.Data = transactions
+		r.PaginationToken = nil
+		return nil
+	}
+	type plain GetParsedTransactionsForAddressResult
+	return json.Unmarshal(data, (*plain)(r))
+}
+
+// ParsedTransactionForAddress is one jsonParsed transaction-history entry.
+type ParsedTransactionForAddress struct {
+	Slot             uint64                  `json:"slot"`
+	TransactionIndex uint64                  `json:"transactionIndex"`
+	BlockTime        *solana.UnixTimeSeconds `json:"blockTime"`
+
+	Signature          solana.Signature       `json:"signature,omitempty"`
+	Err                any                    `json:"err,omitempty"`
+	Memo               *string                `json:"memo,omitempty"`
+	ConfirmationStatus ConfirmationStatusType `json:"confirmationStatus,omitempty"`
+
+	Transaction *ParsedTransaction     `json:"transaction,omitempty"`
+	Meta        *ParsedTransactionMeta `json:"meta,omitempty"`
 }

@@ -9,9 +9,6 @@ type GetSupplyOpts struct {
 	Commitment CommitmentType `json:"commitment,omitempty"`
 
 	ExcludeNonCirculatingAccountsList bool `json:"excludeNonCirculatingAccountsList,omitempty"` // exclude non circulating accounts list from response
-
-	// The minimum slot that the request can be evaluated at.
-	MinContextSlot *uint64 `json:"minContextSlot,omitempty"`
 }
 
 // GetSupplyResult is the result of the getSupply method.

@@ -126,6 +126,13 @@ slot, err := client.GetSlot(ctx, rpc.CommitmentFinalized)
 
 Every RPC method is available; single-item lookups return `rpc.ErrNotFound` on a null result. Methods with multi-field configuration expose a `WithOpts` variant or accept an options struct directly, while convenience methods keep common calls terse. Transaction and block convenience methods default `maxSupportedTransactionVersion=0` so versioned transactions decode out of the box.
 
+FluxRPC extensions are first-class rather than hidden behind raw calls:
+`GetPriorityFeeEstimate`, `GetTransactionsForAddress` (including a jsonParsed
+variant), `GetTokenAccounts`, `GetTokenAccountsCount`, and
+`GetUpcomingLeaders`. The program-account client also supports FluxRPC cursor
+pagination, changed-slot ranges, sorted results, and async delivery while
+retaining every standard Solana option.
+
 ### Streaming getProgramAccounts
 
 ```go
@@ -154,22 +161,54 @@ for {
 
 All nine pubsub subscriptions are covered: account, program, logs, signature, slot, slotsUpdates, root, vote, block — plus `ParsedBlockSubscribe`, the jsonParsed variant of block.
 
-### Yellowstone (gRPC Geyser)
+## Full Yellowstone gRPC Geyser client
+
+The separate [`yellowstone`](yellowstone/) module is a complete, easy-to-use
+Go client for Solana Yellowstone gRPC (Geyser / Dragon's Mouth). It handles
+authenticated TLS connections, every subscription filter family, live filter
+updates, large block messages, unary Geyser calls, and conversion into this
+SDK's native account, transaction, and metadata types. Because it is a nested
+module, applications that only need JSON-RPC do not inherit gRPC or protobuf
+dependencies.
+
+Install it independently:
+
+```bash
+go get github.com/fluxrpc/solana-go/yellowstone
+```
+
+Connect and subscribe with the small filter-builder API:
 
 ```go
 client, err := yellowstone.Connect(ctx, "https://your-geyser:443",
 	yellowstone.WithToken("..."))
+defer client.Close()
 
 req := yellowstone.NewRequest(pb.CommitmentLevel_CONFIRMED)
 yellowstone.AddAccounts(req, "usdc", yellowstone.AccountsByOwner(tokenProgram.String()))
+yellowstone.AddSlots(req, "slots", yellowstone.Slots())
 stream, err := client.Subscribe(ctx, req)
+defer stream.Close()
+
 for {
 	update, err := stream.Recv()
-	...
+	if err != nil {
+		return err
+	}
+	if account := update.GetAccount(); account != nil {
+		converted := yellowstone.ConvertAccount(account)
+		process(converted)
+	}
 }
 ```
 
-`ConvertTransaction` and `ConvertAccount` map geyser protobuf payloads into this SDK's types; converted transactions re-serialize byte-identical to the on-chain wire form.
+Filters cover accounts, slots, transactions, blocks, block metadata, and
+entries. `Stream.Update` replaces filters without reconnecting.
+`ConvertTransaction` and `ConvertAccount` map protobuf updates into this SDK's
+types; converted transactions re-serialize byte-identical to the on-chain wire
+form. See the [Yellowstone client guide](yellowstone/README.md) for complete
+examples, connection options, unary calls, and piping realtime updates into
+the built-in RPC cache.
 
 ### Account cache
 

@@ -6,7 +6,8 @@ import (
 	"testing"
 )
 
-// The round trip guards the option field set and JSON names.
+// The exact marshal assertion guards the option JSON names; the round trip
+// guards the field values.
 func TestGetBalanceOptsRoundTrip(t *testing.T) {
 	minContextSlot := uint64(83987501)
 	opts := GetBalanceOpts{
@@ -17,6 +18,10 @@ func TestGetBalanceOptsRoundTrip(t *testing.T) {
 	data, err := json.Marshal(opts)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
+	}
+	wantJSON := `{"commitment":"confirmed","minContextSlot":83987501}`
+	if string(data) != wantJSON {
+		t.Fatalf("JSON = %s, want %s", data, wantJSON)
 	}
 	var back GetBalanceOpts
 	if err := json.Unmarshal(data, &back); err != nil {

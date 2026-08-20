@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -90,6 +91,10 @@ func (lc *liveClient) tryCall(t *testing.T, method string, params ...any) (json.
 		t.Fatalf("%s: %v", method, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, &rpcError{Code: resp.StatusCode, Message: fmt.Sprintf("HTTP %s: %.200s", resp.Status, body)}
+	}
 
 	var envelope struct {
 		Result json.RawMessage `json:"result"`

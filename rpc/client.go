@@ -156,16 +156,17 @@ func callNullable[T any](ctx context.Context, c *Client, method string, params .
 // carries a slot even in streaming form.
 func (c *Client) GetProgramAccountsStream(ctx context.Context, program solana.PublicKey, opts *GetProgramAccountsOpts, fn func(*KeyedAccount) error) (*Context, error) {
 	withCtx := true
-	if opts == nil {
-		opts = &GetProgramAccountsOpts{}
+	requestOpts := GetProgramAccountsOpts{WithContext: &withCtx}
+	if opts != nil {
+		requestOpts = *opts
+		requestOpts.WithContext = &withCtx
 	}
-	opts.WithContext = &withCtx
 
 	payload, err := sonic.Marshal(rpcRequest{
 		JSONRPC: "2.0",
 		ID:      c.id.Add(1),
 		Method:  "getProgramAccounts",
-		Params:  []any{program, opts},
+		Params:  []any{program, &requestOpts},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("getProgramAccounts: encoding request: %w", err)

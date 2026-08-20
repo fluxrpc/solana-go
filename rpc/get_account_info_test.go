@@ -8,9 +8,7 @@ import (
 	solana "github.com/fluxrpc/solana-go"
 )
 
-// GetAccountInfoOpts is a request-builder options struct without JSON tags
-// (as upstream); the round trip below guards the field set. Values from
-// upstream gagliardetto/solana-go rpc/client_test.go
+// Values are from upstream gagliardetto/solana-go rpc/client_test.go
 // (TestClient_GetAccountInfoWithOpts).
 func TestGetAccountInfoOptsRoundTrip(t *testing.T) {
 	offset := uint64(22)
@@ -29,6 +27,10 @@ func TestGetAccountInfoOptsRoundTrip(t *testing.T) {
 	data, err := json.Marshal(opts)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
+	}
+	wantJSON := `{"encoding":"base64+zstd","commitment":"finalized","dataSlice":{"offset":22,"length":33},"minContextSlot":83986105}`
+	if string(data) != wantJSON {
+		t.Fatalf("JSON = %s, want %s", data, wantJSON)
 	}
 	var back GetAccountInfoOpts
 	if err := json.Unmarshal(data, &back); err != nil {
