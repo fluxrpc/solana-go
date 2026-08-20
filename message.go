@@ -162,6 +162,72 @@ func (mx *Message) AddAddressTableLookup(lookup MessageAddressTableLookup) *Mess
 	return mx
 }
 
+// ErrAddressTablesNotSet is returned by AccountMetaList when the message is
+// versioned and references address table lookups: this package carries no
+// lookup-table resolution, so the full account list cannot be produced.
+var ErrAddressTablesNotSet = errors.New("address tables not set: cannot list account metas for a versioned message with lookups")
+
+// Account returns the static account key at index. It does not resolve
+// address table lookups.
+func (mx *Message) Account(index uint16) (PublicKey, error) {
+	if int(index) < len(mx.AccountKeys) {
+		return mx.AccountKeys[index], nil
+	}
+	return PublicKey{}, fmt.Errorf("account index not found %d", index)
+}
+
+// UnmarshalBase64 decodes a base64-encoded binary message.
+func (mx *Message) UnmarshalBase64(b64 string) error {
+	data, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return err
+	}
+	return mx.UnmarshalBinary(data)
+}
+
+// AccountMetaList returns the static account keys with their signer/writable
+// roles derived from the message header. For a versioned message that
+// references address table lookups it returns ErrAddressTablesNotSet, since
+// the looked-up accounts cannot be listed without resolution.
+func (mx *Message) AccountMetaList() (AccountMetaSlice, error) {
+	if mx.version != MessageVersionLegacy && mx.AddressTableLookups.NumLookups() > 0 {
+		return nil, ErrAddressTablesNotSet
+	}
+	out := make(AccountMetaSlice, len(mx.AccountKeys))
+	for i, key := range mx.AccountKeys {
+		out[i] = &AccountMeta{
+			PublicKey:  key,
+			IsSigner:   i < int(mx.Header.NumRequiredSignatures),
+			IsWritable: mx.staticIndexIsWritable(i),
+		}
+	}
+	return out, nil
+}
+
+// IsWritableStatic reports whether the account is a writable account in the
+// static accounts list, ignoring the accounts in the address table lookups.
+func (mx *Message) IsWritableStatic(account PublicKey) bool {
+	for i, key := range mx.AccountKeys {
+		if key == account {
+			return mx.staticIndexIsWritable(i)
+		}
+	}
+	return false
+}
+
+// staticIndexIsWritable implements the Solana message account-ordering rule:
+// [writable signers][readonly signers][writable non-signers][readonly
+// non-signers], with the boundaries given by the header counts.
+func (mx *Message) staticIndexIsWritable(index int) bool {
+	h := mx.Header
+	if index >= int(h.NumRequiredSignatures) {
+		// Use int arithmetic to avoid underflow (Rust saturating_sub).
+		numWritableUnsigned := max(len(mx.AccountKeys)-int(h.NumRequiredSignatures)-int(h.NumReadonlyUnsignedAccounts), 0)
+		return index-int(h.NumRequiredSignatures) < numWritableUnsigned
+	}
+	return index < max(int(h.NumRequiredSignatures)-int(h.NumReadonlySignedAccounts), 0)
+}
+
 // Signers returns the pubkeys of all accounts that are signers:
 // always the first `NumRequiredSignatures` account keys.
 func (mx *Message) Signers() []PublicKey {

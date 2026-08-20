@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -349,5 +350,91 @@ func BenchmarkMessageUnmarshalJSON(b *testing.B) {
 		if err := benchmarkMessage.UnmarshalJSON(data); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func TestMessageAccountHelpers(t *testing.T) {
+	keys := make([]PublicKey, 5)
+	for i := range keys {
+		keys[i] = PublicKey{byte(i + 1)}
+	}
+	// Ordering: [writable signers][readonly signers][writable non-signers]
+	// [readonly non-signers] = keys[0] | keys[1] | keys[2,3] | keys[4]
+	msg := Message{
+		Header: MessageHeader{
+			NumRequiredSignatures:       2,
+			NumReadonlySignedAccounts:   1,
+			NumReadonlyUnsignedAccounts: 1,
+		},
+		AccountKeys: keys,
+	}
+
+	wantWritable := []bool{true, false, true, true, false}
+	metas, err := msg.AccountMetaList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(metas) != len(keys) {
+		t.Fatalf("metas = %d, want %d", len(metas), len(keys))
+	}
+	for i, meta := range metas {
+		if meta.PublicKey != keys[i] {
+			t.Errorf("meta %d key mismatch", i)
+		}
+		if meta.IsSigner != (i < 2) {
+			t.Errorf("meta %d IsSigner = %v", i, meta.IsSigner)
+		}
+		if meta.IsWritable != wantWritable[i] {
+			t.Errorf("meta %d IsWritable = %v, want %v", i, meta.IsWritable, wantWritable[i])
+		}
+		if msg.IsWritableStatic(keys[i]) != wantWritable[i] {
+			t.Errorf("IsWritableStatic(%d) = %v, want %v", i, !wantWritable[i], wantWritable[i])
+		}
+	}
+	if msg.IsWritableStatic(PublicKey{0xFF}) {
+		t.Error("IsWritableStatic(unknown) = true")
+	}
+
+	if got, err := msg.Account(3); err != nil || got != keys[3] {
+		t.Errorf("Account(3) = %v, %v", got, err)
+	}
+	if _, err := msg.Account(5); err == nil {
+		t.Error("Account(5) should be out of range")
+	}
+
+	// A versioned message with lookups cannot produce a full meta list.
+	v0 := msg
+	v0.version = MessageVersionV0
+	v0.AddressTableLookups = MessageAddressTableLookupSlice{
+		{AccountKey: keys[0], WritableIndexes: Uint8SliceAsNum{0}},
+	}
+	if _, err := v0.AccountMetaList(); !errors.Is(err, ErrAddressTablesNotSet) {
+		t.Errorf("versioned AccountMetaList err = %v", err)
+	}
+}
+
+func TestMessageUnmarshalBase64(t *testing.T) {
+	msg := Message{
+		Header:          MessageHeader{NumRequiredSignatures: 1},
+		AccountKeys:     []PublicKey{{1}, {2}},
+		RecentBlockhash: Hash{3},
+		Instructions: []CompiledInstruction{
+			{ProgramIDIndex: 1, Accounts: []uint16{0}, Data: Base58{9}},
+		},
+	}
+	raw, err := msg.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got Message
+	if err := got.UnmarshalBase64(base64.StdEncoding.EncodeToString(raw)); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.AccountKeys) != 2 || got.AccountKeys[1] != (PublicKey{2}) {
+		t.Fatalf("round-trip mismatch: %+v", got)
+	}
+	if err := got.UnmarshalBase64("not@base64!"); err == nil {
+		t.Fatal("invalid base64 accepted")
 	}
 }

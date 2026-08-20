@@ -72,5 +72,5 @@ func (h *Hash) UnmarshalJSON(data []byte) error {
 
 // String returns the base58 representation of the hash.
 func (h Hash) String() string {
-	return base58.Encode32((*[32]byte)(&h))
+	return base58.EncodeCached32((*[32]byte)(&h))
 }

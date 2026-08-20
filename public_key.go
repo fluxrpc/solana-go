@@ -49,6 +49,15 @@ func MPK(in string) PublicKey {
 // base58 strings.
 type PublicKeySlice []PublicKey
 
+// ToBase58 returns the base58 encoding of each key in the slice.
+func (slice PublicKeySlice) ToBase58() []string {
+	out := make([]string, len(slice))
+	for i, pubkey := range slice {
+		out[i] = pubkey.String()
+	}
+	return out
+}
+
 // PublicKeyFromBase58 creates a PublicKey from a base58 encoded string.
 // NOTE: it will accept on- and off-curve pubkeys.
 func PublicKeyFromBase58(in string) (out PublicKey, err error) {
@@ -127,5 +136,5 @@ func (p PublicKey) IsZero() bool {
 
 // String returns the base58 representation of the key.
 func (p PublicKey) String() string {
-	return base58.Encode32((*[32]byte)(&p))
+	return base58.EncodeCached32((*[32]byte)(&p))
 }
