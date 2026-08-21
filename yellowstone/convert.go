@@ -8,7 +8,7 @@ import (
 
 	solana "github.com/fluxrpc/solana-go"
 	rpc "github.com/fluxrpc/solana-go/rpc"
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
+	pb "github.com/fluxrpc/solana-go/yellowstone/proto"
 )
 
 // TransactionError is the failure of a geyser-streamed transaction. Geyser
@@ -65,6 +65,9 @@ func (u *Update) Transaction() (*solana.Transaction, *rpc.TransactionMeta, error
 	if msg == nil {
 		return nil, nil, errors.New("transaction update has no message")
 	}
+	if msg.Config != nil {
+		return nil, nil, errors.New("transaction update is version 1; use TransactionV1")
+	}
 
 	tx := &solana.Transaction{
 		Signatures: make([]solana.Signature, len(info.Transaction.Signatures)),
@@ -109,6 +112,49 @@ func (u *Update) Transaction() (*solana.Transaction, *rpc.TransactionMeta, error
 		return nil, nil, err
 	}
 	return tx, meta, nil
+}
+
+// TransactionV1 converts a streamed v1 transaction and its metadata.
+func (u *Update) TransactionV1() (*solana.TransactionV1, *rpc.TransactionMeta, error) {
+	if u == nil || u.SubscribeUpdate == nil {
+		return nil, nil, errors.New("yellowstone update has no transaction")
+	}
+	info := u.GetTransaction().GetTransaction()
+	if info == nil || info.Transaction == nil || info.Transaction.Message == nil {
+		return nil, nil, errors.New("transaction update has no transaction message")
+	}
+	msg := info.Transaction.Message
+	if msg.Config == nil {
+		return nil, nil, errors.New("transaction update is not version 1")
+	}
+	if len(msg.AddressTableLookups) != 0 {
+		return nil, nil, errors.New("v1 transaction contains address table lookups")
+	}
+
+	tx := &solana.TransactionV1{
+		Config: solana.TransactionConfig{
+			PriorityFeeLamports:         msg.Config.PriorityFee,
+			ComputeUnitLimit:            msg.Config.ComputeUnitLimit,
+			LoadedAccountsDataSizeLimit: msg.Config.LoadedAccountsDataSizeLimit,
+			HeapSize:                    msg.Config.HeapSize,
+		},
+		LifetimeSpecifier: hashFromBytes(msg.RecentBlockhash),
+		AccountKeys:       convertPubkeys(msg.AccountKeys),
+		Instructions:      convertInstructions(msg.Instructions),
+		Signatures:        make([]solana.Signature, len(info.Transaction.Signatures)),
+	}
+	if h := msg.Header; h != nil {
+		tx.Header = solana.MessageHeader{
+			NumRequiredSignatures:       uint8(h.NumRequiredSignatures),
+			NumReadonlySignedAccounts:   uint8(h.NumReadonlySignedAccounts),
+			NumReadonlyUnsignedAccounts: uint8(h.NumReadonlyUnsignedAccounts),
+		}
+	}
+	for i, sig := range info.Transaction.Signatures {
+		tx.Signatures[i] = solana.SignatureFromBytes(sig)
+	}
+	meta, err := convertMeta(info.Meta)
+	return tx, meta, err
 }
 
 func convertInstructions(in []*pb.CompiledInstruction) []solana.CompiledInstruction {
@@ -185,7 +231,7 @@ func convertMeta(m *pb.TransactionStatusMeta) (*rpc.TransactionMeta, error) {
 				Pubkey:      pubkey,
 				Lamports:    reward.Lamports,
 				PostBalance: reward.PostBalance,
-				RewardType:  rewardTypes[reward.RewardType],
+				RewardType:  rpc.RewardType(reward.RewardType.String()),
 			}
 			if reward.Commission != "" {
 				commission, err := strconv.ParseUint(reward.Commission, 10, 8)
@@ -194,6 +240,14 @@ func convertMeta(m *pb.TransactionStatusMeta) (*rpc.TransactionMeta, error) {
 				}
 				c := uint8(commission)
 				meta.Rewards[i].Commission = &c
+			}
+			if reward.CommissionBps != "" {
+				commission, err := strconv.ParseUint(reward.CommissionBps, 10, 16)
+				if err != nil {
+					return nil, fmt.Errorf("reward commission bps: %w", err)
+				}
+				c := uint16(commission)
+				meta.Rewards[i].CommissionBps = &c
 			}
 		}
 	}
@@ -209,13 +263,6 @@ func convertMeta(m *pb.TransactionStatusMeta) (*rpc.TransactionMeta, error) {
 		}
 	}
 	return meta, nil
-}
-
-var rewardTypes = map[pb.RewardType]rpc.RewardType{
-	pb.RewardType_Fee:     rpc.RewardTypeFee,
-	pb.RewardType_Rent:    rpc.RewardTypeRent,
-	pb.RewardType_Voting:  rpc.RewardTypeVoting,
-	pb.RewardType_Staking: rpc.RewardTypeStaking,
 }
 
 func convertTokenBalances(in []*pb.TokenBalance) ([]rpc.TokenBalance, error) {

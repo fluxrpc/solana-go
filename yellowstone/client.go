@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
+	pb "github.com/fluxrpc/solana-go/yellowstone/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"

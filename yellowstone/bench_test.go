@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	solana "github.com/fluxrpc/solana-go"
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
+	pb "github.com/fluxrpc/solana-go/yellowstone/proto"
 	"google.golang.org/grpc"
 )
 

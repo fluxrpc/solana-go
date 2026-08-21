@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
+	pb "github.com/fluxrpc/solana-go/yellowstone/proto"
 )
 
 func TestSubscribe(t *testing.T) {

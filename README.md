@@ -125,7 +125,7 @@ accounts, err := client.GetMultipleAccounts(ctx, key1, key2, key3)
 slot, err := client.GetSlot(ctx, rpc.CommitmentFinalized)
 ```
 
-Every RPC method is available; single-item lookups return `rpc.ErrNotFound` on a null result. Methods with multi-field configuration expose a `WithOpts` variant or accept an options struct directly, while convenience methods keep common calls terse. Transaction and block convenience methods default `maxSupportedTransactionVersion=0` so versioned transactions decode out of the box.
+Every RPC method is available; single-item lookups return `rpc.ErrNotFound` on a null result. Methods with multi-field configuration expose a `WithOpts` variant or accept an options struct directly, while convenience methods keep common calls terse. Transaction and block convenience methods request base64 and default `maxSupportedTransactionVersion=1`.
 
 FluxRPC extensions are first-class rather than hidden behind raw calls:
 `GetPriorityFeeEstimate`, `GetTransactionsForAddress` (including a jsonParsed

@@ -16,6 +16,8 @@ const (
 	RewardTypeVoting RewardType = "Voting"
 	// RewardTypeStaking is a staking reward.
 	RewardTypeStaking RewardType = "Staking"
+	// RewardTypeDeactivatedStake is a final deactivating stake reward.
+	RewardTypeDeactivatedStake RewardType = "DeactivatedStake"
 )
 
 // BlockReward describes a reward credited or debited to an account.
@@ -29,10 +31,13 @@ type BlockReward struct {
 	// Account balance in lamports after the reward was applied.
 	PostBalance uint64 `json:"postBalance"`
 
-	// Type of reward: "Fee", "Rent", "Voting", "Staking".
+	// Type of reward: "Fee", "Rent", "Voting", "Staking", "DeactivatedStake".
 	RewardType RewardType `json:"rewardType"`
 
 	// Vote account commission when the reward was credited,
 	// only present for voting and staking rewards.
 	Commission *uint8 `json:"commission,omitempty"`
+
+	// Vote account commission in basis points.
+	CommissionBps *uint16 `json:"commissionBps,omitempty"`
 }

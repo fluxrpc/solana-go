@@ -16,8 +16,8 @@
 // GetBlockTime and GetLeaderSchedule—return [ErrNotFound] when the RPC
 // result is null. Methods with multi-field configuration have a WithOpts
 // variant or accept an options struct directly; convenience forms use
-// pragmatic defaults, notably
-// maxSupportedTransactionVersion=0 so versioned transactions decode out of
+// pragmatic defaults, notably base64 transaction encoding and
+// maxSupportedTransactionVersion=1 so versioned transactions decode out of
 // the box. Use [Client.SetHeader] for authenticated endpoints.
 //
 // # Account cache

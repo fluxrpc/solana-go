@@ -37,7 +37,7 @@ func TestParsedBlockSubscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(opts["encoding"]) != `"jsonParsed"` || string(opts["commitment"]) != `"confirmed"` ||
-		string(opts["maxSupportedTransactionVersion"]) != `0` {
+		string(opts["maxSupportedTransactionVersion"]) != `1` {
 		t.Fatalf("opts = %v", opts)
 	}
 

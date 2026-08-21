@@ -154,7 +154,7 @@ func TestClientGetBlockDefaults(t *testing.T) {
 	if string(params[0]) != "83987984" {
 		t.Fatalf("params[0] = %s", params[0])
 	}
-	if string(params[1]) != `{"maxSupportedTransactionVersion":0}` {
+	if string(params[1]) != `{"encoding":"base64","maxSupportedTransactionVersion":1}` {
 		t.Fatalf("params[1] = %s", params[1])
 	}
 }

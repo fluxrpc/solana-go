@@ -21,7 +21,7 @@ type BlockResult struct {
 }
 
 // BlockSubscribe subscribes to all new finalized blocks with base64-encoded
-// transactions and maxSupportedTransactionVersion 0.
+// transactions and maxSupportedTransactionVersion 1.
 // NOTE: the node must run with --rpc-pubsub-enable-block-subscription.
 func (c *Client) BlockSubscribe(ctx context.Context, commitment rpc.CommitmentType) (*Subscription[BlockResult], error) {
 	return c.blockSubscribe(ctx, "all", commitment, nil)
@@ -49,7 +49,7 @@ func (c *Client) blockSubscribe(ctx context.Context, filter any, commitment rpc.
 func (c *Client) blockSubscribeOpts(encoding solana.EncodingType, commitment rpc.CommitmentType, extra rpc.M) rpc.M {
 	opts := rpc.M{
 		"encoding":                       encoding,
-		"maxSupportedTransactionVersion": uint64(0),
+		"maxSupportedTransactionVersion": rpc.MaxSupportedTransactionVersion1,
 	}
 	if commitment != "" {
 		opts["commitment"] = commitment
@@ -75,7 +75,7 @@ type ParsedBlockResult struct {
 }
 
 // ParsedBlockSubscribe subscribes to all new finalized blocks with
-// jsonParsed transactions and maxSupportedTransactionVersion 0.
+// jsonParsed transactions and maxSupportedTransactionVersion 1.
 // NOTE: the node must run with --rpc-pubsub-enable-block-subscription.
 func (c *Client) ParsedBlockSubscribe(ctx context.Context, commitment rpc.CommitmentType) (*Subscription[ParsedBlockResult], error) {
 	return c.parsedBlockSubscribe(ctx, "all", commitment, nil)

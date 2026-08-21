@@ -8,7 +8,7 @@ import (
 
 	solana "github.com/fluxrpc/solana-go"
 	"github.com/fluxrpc/solana-go/rpc"
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
+	pb "github.com/fluxrpc/solana-go/yellowstone/proto"
 )
 
 type sinkUpdate struct {

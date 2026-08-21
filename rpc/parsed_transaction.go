@@ -82,9 +82,10 @@ type ParsedMessageAccount struct {
 
 // ParsedMessage is the message of a jsonParsed-encoded transaction.
 type ParsedMessage struct {
-	AccountKeys     []ParsedMessageAccount `json:"accountKeys"`
-	Instructions    []*ParsedInstruction   `json:"instructions"`
-	RecentBlockHash string                 `json:"recentBlockhash"`
+	AccountKeys       []ParsedMessageAccount    `json:"accountKeys"`
+	Instructions      []*ParsedInstruction      `json:"instructions"`
+	RecentBlockHash   string                    `json:"recentBlockhash"`
+	TransactionConfig *solana.TransactionConfig `json:"transactionConfig,omitempty"`
 }
 
 // ParsedInstruction is an instruction of a jsonParsed-encoded transaction.
