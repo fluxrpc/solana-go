@@ -164,4 +164,5 @@ type ParsedTransactionWithMeta struct {
 	BlockTime   *solana.UnixTimeSeconds `json:"blockTime,omitempty"`
 	Transaction *ParsedTransaction      `json:"transaction"`
 	Meta        *ParsedTransactionMeta  `json:"meta"`
+	Version     TransactionVersion      `json:"version"`
 }

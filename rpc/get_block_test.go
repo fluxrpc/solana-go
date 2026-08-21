@@ -67,6 +67,7 @@ const getParsedBlockResultFixture = `{
 	"rewards": [{"lamports": 1595000, "postBalance": 482032983798, "pubkey": "5rL3AaidKJa4ChSV3ys1SvpDg9L4amKiwYayGR5oL3dq", "rewardType": "Fee"}],
 	"transactions": [
 		{
+			"version": "legacy",
 			"meta": {"err": null, "fee": 5000, "preBalances": [441866068495, 40905918933763, 1, 1, 1], "postBalances": [441866063495, 40905918933763, 1, 1, 1], "logMessages": ["Program Vote111111111111111111111111111111111111111 invoke [1]", "Program Vote111111111111111111111111111111111111111 success"], "returnData": {"programId": "11111111111111111111111111111111", "data": ["aGVsbG8=", "base64"]}, "status": {"Ok": null}},
 			"transaction": {
 				"signatures": ["D8emaP3CaepSGigD3TCrev7j67yPLMi82qfzTb9iZYPxHcCmm6sQBKTU4bzAee4445zbnbWduVAZ87WfbWbXoAU"],
@@ -99,6 +100,9 @@ func TestGetParsedBlockResultJSON(t *testing.T) {
 		t.Fatalf("Transactions = %d", len(block.Transactions))
 	}
 	twm := block.Transactions[0]
+	if twm.Version != LegacyTransactionVersion {
+		t.Fatalf("Version = %v", twm.Version)
+	}
 	if twm.Meta == nil || twm.Meta.Fee != 5000 {
 		t.Fatalf("Meta = %+v", twm.Meta)
 	}

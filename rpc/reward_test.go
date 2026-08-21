@@ -39,7 +39,7 @@ func TestBlockRewardJSON(t *testing.T) {
 
 func TestBlockRewardCommission(t *testing.T) {
 	// Voting rewards carry a commission.
-	in := `{"pubkey":"5rL3AaidKJa4ChSV3ys1SvpDg9L4amKiwYayGR5oL3dq","lamports":-42,"postBalance":100,"rewardType":"Voting","commission":5}`
+	in := `{"pubkey":"5rL3AaidKJa4ChSV3ys1SvpDg9L4amKiwYayGR5oL3dq","lamports":-42,"postBalance":100,"rewardType":"Voting","commission":5,"commissionBps":550}`
 	reward := jsonRoundTrip[BlockReward](t, []byte(in))
 
 	if reward.Lamports != -42 {
@@ -50,5 +50,15 @@ func TestBlockRewardCommission(t *testing.T) {
 	}
 	if reward.Commission == nil || *reward.Commission != 5 {
 		t.Fatalf("Commission = %v", reward.Commission)
+	}
+	if reward.CommissionBps == nil || *reward.CommissionBps != 550 {
+		t.Fatalf("CommissionBps = %v", reward.CommissionBps)
+	}
+}
+
+func TestBlockRewardDeactivatedStake(t *testing.T) {
+	reward := jsonRoundTrip[BlockReward](t, []byte(strings.Replace(blockRewardFixture, "Fee", "DeactivatedStake", 1)))
+	if reward.RewardType != RewardTypeDeactivatedStake {
+		t.Fatalf("RewardType = %q", reward.RewardType)
 	}
 }

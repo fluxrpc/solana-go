@@ -6,7 +6,7 @@ import (
 
 	solana "github.com/fluxrpc/solana-go"
 	rpc "github.com/fluxrpc/solana-go/rpc"
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
+	pb "github.com/fluxrpc/solana-go/yellowstone/proto"
 )
 
 const (
@@ -135,6 +135,37 @@ func TestConvertTransactionRoundTrip(t *testing.T) {
 	}
 }
 
+func TestConvertTransactionV1(t *testing.T) {
+	fee := uint64(42)
+	msg := &pb.Message{
+		Header:          &pb.MessageHeader{NumRequiredSignatures: 1},
+		AccountKeys:     [][]byte{make([]byte, 32)},
+		RecentBlockhash: make([]byte, 32),
+		Versioned:       true,
+		Config:          &pb.TransactionConfig{PriorityFee: &fee},
+	}
+	update := wrapTransactionUpdate(&pb.SubscribeUpdateTransaction{
+		Transaction: &pb.SubscribeUpdateTransactionInfo{Transaction: &pb.Transaction{
+			Signatures: [][]byte{make([]byte, 64)},
+			Message:    msg,
+		}},
+	})
+
+	if _, _, err := update.Transaction(); err == nil {
+		t.Fatal("Transaction accepted v1")
+	}
+	tx, _, err := update.TransactionV1()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tx.Config.PriorityFeeLamports == nil || *tx.Config.PriorityFeeLamports != fee {
+		t.Fatalf("Config = %+v", tx.Config)
+	}
+	if wire, err := tx.MarshalBinary(); err != nil || wire[0] != solana.TransactionV1VersionByte {
+		t.Fatalf("MarshalBinary = %x, %v", wire, err)
+	}
+}
+
 func TestConvertTransactionMeta(t *testing.T) {
 	stackHeight := uint32(2)
 	computeUnits := uint64(4200)
@@ -168,11 +199,12 @@ func TestConvertTransactionMeta(t *testing.T) {
 		}},
 		PostTokenBalances: []*pb.TokenBalance{{AccountIndex: 2, Mint: usdcMint}},
 		Rewards: []*pb.Reward{{
-			Pubkey:      tokenProgram,
-			Lamports:    -12,
-			PostBalance: 88,
-			RewardType:  pb.RewardType_Rent,
-			Commission:  "5",
+			Pubkey:        tokenProgram,
+			Lamports:      -12,
+			PostBalance:   88,
+			RewardType:    pb.RewardType_Rent,
+			Commission:    "5",
+			CommissionBps: "550",
 		}},
 		LoadedWritableAddresses: [][]byte{bytes.Repeat([]byte{1}, 32)},
 		LoadedReadonlyAddresses: [][]byte{bytes.Repeat([]byte{2}, 32)},
@@ -232,7 +264,8 @@ func TestConvertTransactionMeta(t *testing.T) {
 
 	reward := meta.Rewards[0]
 	if reward.Pubkey.String() != tokenProgram || reward.Lamports != -12 || reward.PostBalance != 88 ||
-		reward.RewardType != rpc.RewardTypeRent || reward.Commission == nil || *reward.Commission != 5 {
+		reward.RewardType != rpc.RewardTypeRent || reward.Commission == nil || *reward.Commission != 5 ||
+		reward.CommissionBps == nil || *reward.CommissionBps != 550 {
 		t.Fatalf("reward = %+v", reward)
 	}
 
@@ -249,6 +282,25 @@ func TestConvertTransactionMeta(t *testing.T) {
 	}
 	if *meta.ComputeUnitsConsumed != 4200 || *meta.CostUnits != 999 {
 		t.Fatalf("units = %+v", meta)
+	}
+}
+
+func TestConvertDeactivatedStakeReward(t *testing.T) {
+	tx := testTransaction(t, false)
+	_, meta, err := wrapTransactionUpdate(&pb.SubscribeUpdateTransaction{
+		Transaction: &pb.SubscribeUpdateTransactionInfo{
+			Transaction: txToProto(tx),
+			Meta: &pb.TransactionStatusMeta{Rewards: []*pb.Reward{{
+				Pubkey:     tokenProgram,
+				RewardType: pb.RewardType_DeactivatedStake,
+			}}},
+		},
+	}).Transaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Rewards[0].RewardType != rpc.RewardTypeDeactivatedStake {
+		t.Fatalf("RewardType = %q", meta.Rewards[0].RewardType)
 	}
 }
 

@@ -51,7 +51,7 @@ const (
 type TransactionConfig struct {
 	// PriorityFeeLamports is the total priority fee in lamports
 	// (mask bits 0-1, 8-byte value).
-	PriorityFeeLamports *uint64 `json:"priorityFeeLamports,omitempty"`
+	PriorityFeeLamports *uint64 `json:"priorityFee,omitempty"`
 	// ComputeUnitLimit is the requested compute-unit limit (mask bit 2).
 	ComputeUnitLimit *uint32 `json:"computeUnitLimit,omitempty"`
 	// LoadedAccountsDataSizeLimit is the requested loaded-accounts data

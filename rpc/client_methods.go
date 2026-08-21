@@ -160,11 +160,12 @@ func (c *Client) GetMinimumBalanceForRentExemption(ctx context.Context, dataSize
 // --- Blocks ---
 
 // GetBlock returns identity and transaction information about a confirmed
-// block. Unlike upstream, maxSupportedTransactionVersion defaults to 0 so
-// blocks containing versioned transactions do not error.
+// block, including v1 transactions.
 func (c *Client) GetBlock(ctx context.Context, slot uint64) (*GetBlockResult, error) {
-	version := uint64(0)
-	return c.GetBlockWithOpts(ctx, slot, &GetBlockOpts{MaxSupportedTransactionVersion: &version})
+	return c.GetBlockWithOpts(ctx, slot, &GetBlockOpts{
+		Encoding:                       solana.EncodingBase64,
+		MaxSupportedTransactionVersion: &MaxSupportedTransactionVersion1,
+	})
 }
 
 // GetBlockWithOpts is GetBlock with explicit options; the configured
@@ -187,8 +188,7 @@ func (c *Client) GetBlockWithOpts(ctx context.Context, slot uint64, opts *GetBlo
 func (c *Client) GetParsedBlock(ctx context.Context, slot uint64, opts *GetBlockOpts) (*GetParsedBlockResult, error) {
 	requestOpts := GetBlockOpts{}
 	if opts == nil {
-		version := uint64(0)
-		requestOpts.MaxSupportedTransactionVersion = &version
+		requestOpts.MaxSupportedTransactionVersion = &MaxSupportedTransactionVersion1
 	} else {
 		requestOpts = *opts
 	}
@@ -326,14 +326,12 @@ func (c *Client) GetFirstAvailableBlock(ctx context.Context) (uint64, error) {
 
 // --- Transactions ---
 
-// GetTransaction returns details for a confirmed transaction, requesting
-// base64 encoding with maxSupportedTransactionVersion 0. Returns
+// GetTransaction returns details for a confirmed transaction. Returns
 // ErrNotFound for unknown transactions.
 func (c *Client) GetTransaction(ctx context.Context, signature solana.Signature) (*GetTransactionResult, error) {
-	version := uint64(0)
 	return c.GetTransactionWithOpts(ctx, signature, &GetTransactionOpts{
 		Encoding:                       solana.EncodingBase64,
-		MaxSupportedTransactionVersion: &version,
+		MaxSupportedTransactionVersion: &MaxSupportedTransactionVersion1,
 	})
 }
 
@@ -351,8 +349,7 @@ func (c *Client) GetTransactionWithOpts(ctx context.Context, signature solana.Si
 
 // GetParsedTransaction fetches the transaction with jsonParsed encoding.
 func (c *Client) GetParsedTransaction(ctx context.Context, signature solana.Signature, opts *GetParsedTransactionOpts) (*GetParsedTransactionResult, error) {
-	version := uint64(0)
-	obj := M{"encoding": solana.EncodingJSONParsed, "maxSupportedTransactionVersion": &version}
+	obj := M{"encoding": solana.EncodingJSONParsed, "maxSupportedTransactionVersion": &MaxSupportedTransactionVersion1}
 	if opts != nil {
 		if opts.Commitment != "" {
 			obj["commitment"] = opts.Commitment

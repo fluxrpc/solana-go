@@ -29,7 +29,7 @@ import (
 	"log"
 
 	"github.com/fluxrpc/solana-go/yellowstone"
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
+	pb "github.com/fluxrpc/solana-go/yellowstone/proto"
 )
 
 func main() {

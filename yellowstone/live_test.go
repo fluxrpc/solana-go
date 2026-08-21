@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
+	pb "github.com/fluxrpc/solana-go/yellowstone/proto"
 )
 
 // TestLiveYellowstone runs against a real endpoint:

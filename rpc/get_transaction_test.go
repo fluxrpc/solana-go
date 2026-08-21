@@ -2,9 +2,9 @@ package rpc
 
 import (
 	"encoding/json"
-	"github.com/bytedance/sonic"
 	"testing"
 
+	"github.com/bytedance/sonic"
 	solana "github.com/fluxrpc/solana-go"
 )
 
