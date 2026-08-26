@@ -172,6 +172,42 @@ func fluxDecodeMetadata(data []byte, copyStrings bool) (metadata, error) {
 	return out, d.Err()
 }
 
+// ---- flux encode paths -------------------------------------------------
+
+func fluxEncodeTokenAccount(e *fluxbin.Encoder, value tokenAccount) {
+	e.WritePublicKey(value.Mint)
+	e.WritePublicKey(value.Owner)
+	e.WriteUint64(value.Amount)
+	e.WriteCOption(value.HasDelegate)
+	e.WritePublicKey(value.Delegate)
+	e.WriteUint8(value.State)
+	e.WriteCOption(value.IsNative)
+	e.WriteUint64(value.NativeValue)
+	e.WriteUint64(value.DelegatedAmount)
+	e.WriteCOption(value.HasClose)
+	e.WritePublicKey(value.CloseAuthority)
+}
+
+func fluxEncodeMetadata(e *fluxbin.Encoder, value metadata) {
+	e.WriteUint8(value.Key)
+	e.WritePublicKey(value.UpdateAuthority)
+	e.WritePublicKey(value.Mint)
+	e.WriteBorshString(value.Name)
+	e.WriteBorshString(value.Symbol)
+	e.WriteBorshString(value.URI)
+	e.WriteUint16(value.SellerFee)
+	e.WriteOption(value.Creators != nil)
+	if value.Creators == nil {
+		return
+	}
+	e.WriteUint32(uint32(len(value.Creators)))
+	for i := range value.Creators {
+		e.WritePublicKey(value.Creators[i].Address)
+		e.WriteBool(value.Creators[i].Verified)
+		e.WriteUint8(value.Creators[i].Share)
+	}
+}
+
 // ---- gagl decode paths -------------------------------------------------
 
 // gaglDecodeTokenAccount mirrors token_2022_go's UnmarshalWithDecoder style:
@@ -267,6 +303,87 @@ func gaglDecodeMetadata(data []byte) (out metadata, err error) {
 	return out, nil
 }
 
+// ---- gagl encode paths -------------------------------------------------
+
+func gaglEncodeTokenAccount(e *gaglbin.Encoder, value tokenAccount) error {
+	if err := e.WriteBytes(value.Mint[:], false); err != nil {
+		return err
+	}
+	if err := e.WriteBytes(value.Owner[:], false); err != nil {
+		return err
+	}
+	if err := e.WriteUint64(value.Amount, binary.LittleEndian); err != nil {
+		return err
+	}
+	if err := e.WriteCOption(value.HasDelegate); err != nil {
+		return err
+	}
+	if err := e.WriteBytes(value.Delegate[:], false); err != nil {
+		return err
+	}
+	if err := e.WriteUint8(value.State); err != nil {
+		return err
+	}
+	if err := e.WriteCOption(value.IsNative); err != nil {
+		return err
+	}
+	if err := e.WriteUint64(value.NativeValue, binary.LittleEndian); err != nil {
+		return err
+	}
+	if err := e.WriteUint64(value.DelegatedAmount, binary.LittleEndian); err != nil {
+		return err
+	}
+	if err := e.WriteCOption(value.HasClose); err != nil {
+		return err
+	}
+	return e.WriteBytes(value.CloseAuthority[:], false)
+}
+
+func gaglEncodeMetadata(e *gaglbin.Encoder, value metadata) error {
+	if err := e.WriteUint8(value.Key); err != nil {
+		return err
+	}
+	if err := e.WriteBytes(value.UpdateAuthority[:], false); err != nil {
+		return err
+	}
+	if err := e.WriteBytes(value.Mint[:], false); err != nil {
+		return err
+	}
+	if err := e.WriteString(value.Name); err != nil {
+		return err
+	}
+	if err := e.WriteString(value.Symbol); err != nil {
+		return err
+	}
+	if err := e.WriteString(value.URI); err != nil {
+		return err
+	}
+	if err := e.WriteUint16(value.SellerFee, binary.LittleEndian); err != nil {
+		return err
+	}
+	if err := e.WriteOption(value.Creators != nil); err != nil {
+		return err
+	}
+	if value.Creators == nil {
+		return nil
+	}
+	if err := e.WriteUint32(uint32(len(value.Creators)), binary.LittleEndian); err != nil {
+		return err
+	}
+	for i := range value.Creators {
+		if err := e.WriteBytes(value.Creators[i].Address[:], false); err != nil {
+			return err
+		}
+		if err := e.WriteBool(value.Creators[i].Verified); err != nil {
+			return err
+		}
+		if err := e.WriteUint8(value.Creators[i].Share); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ---- Parity ------------------------------------------------------------
 
 // TestBinaryParity decodes each fixture with both libraries and requires
@@ -306,6 +423,40 @@ func TestBinaryParity(t *testing.T) {
 		}
 	}
 
+	// Both explicit encoders must reproduce the exact account-state fixtures.
+	fe := fluxbin.NewEncoder(make([]byte, 0, len(splTokenAccountBytes)))
+	fluxEncodeTokenAccount(fe, fa)
+	if fe.Err() != nil || !bytes.Equal(fe.Bytes(), splTokenAccountBytes) {
+		t.Fatalf("flux token-account encode mismatch: %x, %v", fe.Bytes(), fe.Err())
+	}
+	var upstream bytes.Buffer
+	upstream.Grow(len(splTokenAccountBytes))
+	ge := gaglbin.NewBorshEncoder(&upstream)
+	if err := gaglEncodeTokenAccount(ge, ga); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(upstream.Bytes(), splTokenAccountBytes) {
+		t.Fatalf("gagl token-account encode mismatch: %x", upstream.Bytes())
+	}
+
+	fm, err := fluxDecodeMetadata(metadataBytes, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fe.Reset(fe.Bytes()[:0])
+	fluxEncodeMetadata(fe, fm)
+	if fe.Err() != nil || !bytes.Equal(fe.Bytes(), metadataBytes) {
+		t.Fatalf("flux metadata encode mismatch: %x, %v", fe.Bytes(), fe.Err())
+	}
+	upstream.Reset()
+	ge = gaglbin.NewBorshEncoder(&upstream)
+	if err := gaglEncodeMetadata(ge, fm); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(upstream.Bytes(), metadataBytes) {
+		t.Fatalf("gagl metadata encode mismatch: %x", upstream.Bytes())
+	}
+
 	// Compact-u16 parity across the full value range.
 	for v := 0; v <= 0xFFFF; v++ {
 		var enc []byte
@@ -323,6 +474,11 @@ func TestBinaryParity(t *testing.T) {
 		}
 		if fv != gv || d.Pos() != gn {
 			t.Fatalf("value %d: flux (%d, %d) vs gagl (%d, %d)", v, fv, d.Pos(), gv, gn)
+		}
+		fe.Reset(fe.Bytes()[:0])
+		fe.WriteCompactU16(v)
+		if fe.Err() != nil || !bytes.Equal(fe.Bytes(), enc) {
+			t.Fatalf("value %d: flux encode %v, %v vs gagl %v", v, fe.Bytes(), fe.Err(), enc)
 		}
 	}
 
@@ -355,7 +511,130 @@ var (
 	sinkTokenAccount tokenAccount
 	sinkMetadata     metadata
 	sinkInt          int
+	sinkBinaryBytes  []byte
 )
+
+func BenchmarkBinaryEncode_TokenAccount(b *testing.B) {
+	value, err := fluxDecodeTokenAccount(splTokenAccountBytes)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Run("flux", func(b *testing.B) {
+		dst := make([]byte, 0, len(splTokenAccountBytes))
+		e := fluxbin.NewEncoder(dst)
+		b.ReportAllocs()
+		for b.Loop() {
+			e.Reset(dst[:0])
+			fluxEncodeTokenAccount(e, value)
+			dst = e.Bytes()
+		}
+		if err := e.Err(); err != nil {
+			b.Fatal(err)
+		}
+		sinkBinaryBytes = dst
+	})
+	b.Run("gagl", func(b *testing.B) {
+		var dst bytes.Buffer
+		dst.Grow(len(splTokenAccountBytes))
+		e := gaglbin.NewBorshEncoder(&dst)
+		b.ReportAllocs()
+		for b.Loop() {
+			dst.Reset()
+			sinkErr = gaglEncodeTokenAccount(e, value)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+		sinkBinaryBytes = dst.Bytes()
+	})
+}
+
+func BenchmarkBinaryEncode_Metadata(b *testing.B) {
+	value, err := fluxDecodeMetadata(metadataBytes, false)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Run("flux", func(b *testing.B) {
+		dst := make([]byte, 0, len(metadataBytes))
+		e := fluxbin.NewEncoder(dst)
+		b.ReportAllocs()
+		for b.Loop() {
+			e.Reset(dst[:0])
+			fluxEncodeMetadata(e, value)
+			dst = e.Bytes()
+		}
+		if err := e.Err(); err != nil {
+			b.Fatal(err)
+		}
+		sinkBinaryBytes = dst
+	})
+	b.Run("gagl", func(b *testing.B) {
+		var dst bytes.Buffer
+		dst.Grow(len(metadataBytes))
+		e := gaglbin.NewBorshEncoder(&dst)
+		b.ReportAllocs()
+		for b.Loop() {
+			dst.Reset()
+			sinkErr = gaglEncodeMetadata(e, value)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+		sinkBinaryBytes = dst.Bytes()
+	})
+}
+
+func BenchmarkBinaryEncode_CompactU16Short(b *testing.B) {
+	b.Run("flux", func(b *testing.B) {
+		dst := make([]byte, 0, 1)
+		e := fluxbin.NewEncoder(dst)
+		b.ReportAllocs()
+		for b.Loop() {
+			e.Reset(dst[:0])
+			e.WriteCompactU16(5)
+			dst = e.Bytes()
+		}
+		sinkBinaryBytes = dst
+	})
+	b.Run("gagl", func(b *testing.B) {
+		dst := make([]byte, 0, 1)
+		b.ReportAllocs()
+		for b.Loop() {
+			dst = dst[:0]
+			sinkErr = gaglbin.EncodeCompactU16Length(&dst, 5)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+		sinkBinaryBytes = dst
+	})
+}
+
+func BenchmarkBinaryEncode_CompactU16(b *testing.B) {
+	b.Run("flux", func(b *testing.B) {
+		dst := make([]byte, 0, 3)
+		e := fluxbin.NewEncoder(dst)
+		b.ReportAllocs()
+		for b.Loop() {
+			e.Reset(dst[:0])
+			e.WriteCompactU16(0xFFFF)
+			dst = e.Bytes()
+		}
+		sinkBinaryBytes = dst
+	})
+	b.Run("gagl", func(b *testing.B) {
+		dst := make([]byte, 0, 3)
+		b.ReportAllocs()
+		for b.Loop() {
+			dst = dst[:0]
+			sinkErr = gaglbin.EncodeCompactU16Length(&dst, 0xFFFF)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+		sinkBinaryBytes = dst
+	})
+}
 
 func BenchmarkBinary_TokenAccount(b *testing.B) {
 	b.Run("flux", func(b *testing.B) {

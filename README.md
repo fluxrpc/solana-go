@@ -262,9 +262,9 @@ Entries are served when streamed (the feed keeps them current), immutable (`GetA
 | `TransactionV1` / `NewTransactionV1` | `transaction_v1.go` | SIMD-0385 v1 transactions: 4096-byte limit, header config mask, full sanitization |
 | `Wallet` | `wallet.go` | keypair wrapper: random, base58, keygen file, mnemonic |
 
-### Binary decoding
+### Binary encoding and decoding
 
-The [`binary`](binary/) package is a minimal, reflection-free decoder for the little-endian ("bincode") and Borsh layouts used by Solana account state and instruction data. A sticky-error `Decoder` reads fields explicitly in layout order: fixed-width integers, typed `ReadPublicKey` / `ReadSignature` / `ReadHash`, zero-copy `ReadBytes` / `ReadBorshString` (with `Copy` variants), Borsh `Option` / SPL `COption` tags, and canonical compact-u16 lengths. The hot read paths are inlineable and allocation-free; check `Err()` once after the last field.
+The [`binary`](binary/) package is a minimal, reflection-free encoder and decoder for the little-endian ("bincode") and Borsh layouts used by Solana account state and instruction data. The sticky-error APIs read and write fields explicitly in layout order: fixed-width integers, typed public keys / signatures / hashes, raw bytes and Borsh strings, Borsh `Option` / SPL `COption` tags, and canonical compact-u16 lengths. Decoder views can alias their input; encoder writes append directly to a caller-provided slice. Preallocate the destination and reuse it with `Reset(buf[:0])` for allocation-free encoding, then check `Err()` once after the last field.
 
 ### RPC
 
