@@ -1,10 +1,10 @@
-// Package binary provides a small, allocation-free decoder for the
+// Package binary provides a small, allocation-free encoder and decoder for the
 // little-endian ("bincode") and Borsh binary layouts used by Solana account
 // state and instruction data.
 //
-// The decoder is deliberately minimal: there is no reflection, no struct-tag
-// machinery and no encode side. Callers read fields explicitly in layout
-// order, which keeps every read a bounds check and a fixed-width load.
+// The package is deliberately minimal: there is no reflection or struct-tag
+// machinery. Callers read and write fields explicitly in layout order, which
+// keeps the hot paths inlineable and makes buffer ownership explicit.
 //
 // Errors are sticky: the first failed read records the error and every
 // subsequent read returns the zero value without advancing. Decode a struct
@@ -47,8 +47,8 @@ var (
 	// accepting them would let one payload have several encodings.
 	ErrNonCanonical = errors.New("binary: non-canonical compact-u16")
 
-	// ErrOverflow is recorded when a compact-u16 length exceeds the uint16
-	// range or a requested byte count is negative.
+	// ErrOverflow is recorded when a length cannot be represented by its wire
+	// format or a requested byte count is negative.
 	ErrOverflow = errors.New("binary: length overflow")
 )
 
