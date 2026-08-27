@@ -115,3 +115,50 @@ func BenchmarkPublicKey_UnmarshalJSON(b *testing.B) {
 		sinkGaglPubKey = k
 	})
 }
+
+func BenchmarkPublicKey_MarshalText(b *testing.B) {
+	b.Run("flux", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkBytes, sinkErr = fluxPubKey.MarshalText()
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+	b.Run("gagl", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkBytes, sinkErr = gaglPubKey.MarshalText()
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+}
+
+func BenchmarkPublicKey_UnmarshalText(b *testing.B) {
+	text := []byte(pubKeyBase58)
+	b.Run("flux", func(b *testing.B) {
+		b.ReportAllocs()
+		var k flux.PublicKey
+		for b.Loop() {
+			sinkErr = k.UnmarshalText(text)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+		sinkFluxPubKey = k
+	})
+	b.Run("gagl", func(b *testing.B) {
+		b.ReportAllocs()
+		var k gagl.PublicKey
+		for b.Loop() {
+			sinkErr = k.UnmarshalText(text)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+		sinkGaglPubKey = k
+	})
+}

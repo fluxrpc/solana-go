@@ -102,6 +102,12 @@ func (p PublicKey) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
+// MarshalText implements encoding.TextMarshaler, encoding the key as base58.
+// This also allows PublicKey to be used as a JSON object key.
+func (p PublicKey) MarshalText() ([]byte, error) {
+	return []byte(p.String()), nil
+}
+
 // UnmarshalJSON implements json.Unmarshaler, decoding a base58 JSON
 // string.
 func (p *PublicKey) UnmarshalJSON(data []byte) (err error) {
@@ -113,6 +119,17 @@ func (p *PublicKey) UnmarshalJSON(data []byte) (err error) {
 	decoded, err := PublicKeyFromBase58(s)
 	if err != nil {
 		return fmt.Errorf("invalid public key %q: %w", s, err)
+	}
+	*p = decoded
+	return nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler, decoding a base58 key.
+// This also allows PublicKey to be used as a JSON object key.
+func (p *PublicKey) UnmarshalText(text []byte) error {
+	decoded, err := PublicKeyFromBase58(unsafeString(text))
+	if err != nil {
+		return fmt.Errorf("invalid public key %q: %w", text, err)
 	}
 	*p = decoded
 	return nil
