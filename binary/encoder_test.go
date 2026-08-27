@@ -71,11 +71,14 @@ func TestEncoderBytesStringAndReset(t *testing.T) {
 	e.WriteBytes([]byte{1, 2, 3})
 	e.WriteBorshString("hello")
 	e.WriteBorshString("")
+	e.WriteBincodeString("rust")
 
 	want := []byte{0xAA, 1, 2, 3}
 	want = append(want, le32(5)...)
 	want = append(want, "hello"...)
 	want = append(want, le32(0)...)
+	want = append(want, le64(4)...)
+	want = append(want, "rust"...)
 	if !bytes.Equal(e.Bytes(), want) {
 		t.Fatalf("Bytes = %x, want %x", e.Bytes(), want)
 	}
@@ -85,6 +88,17 @@ func TestEncoderBytesStringAndReset(t *testing.T) {
 	e.WriteUint8(9)
 	if e.Err() != nil || !bytes.Equal(e.Bytes(), []byte{9}) {
 		t.Fatalf("after Reset: Bytes = %x, Err = %v", e.Bytes(), e.Err())
+	}
+}
+
+func TestEncoderRejectsInvalidBincodeString(t *testing.T) {
+	e := NewEncoder(nil)
+	e.WriteBincodeString(string([]byte{0xff}))
+	if !errors.Is(e.Err(), ErrInvalidUTF8) {
+		t.Fatalf("Err = %v", e.Err())
+	}
+	if len(e.Bytes()) != 0 {
+		t.Fatalf("invalid string wrote %x", e.Bytes())
 	}
 }
 
@@ -120,6 +134,29 @@ func TestEncoderCompactU16(t *testing.T) {
 		d := NewDecoder(e.Bytes())
 		if got := d.ReadCompactU16(); got != value || d.Err() != nil || d.Remaining() != 0 {
 			t.Fatalf("value %d: got %d, decode Err %v, remaining %d", value, got, d.Err(), d.Remaining())
+		}
+	}
+}
+
+func TestEncoderVarUint64(t *testing.T) {
+	cases := []struct {
+		value uint64
+		want  []byte
+	}{
+		{0, []byte{0x00}},
+		{0x7f, []byte{0x7f}},
+		{0x80, []byte{0x80, 0x01}},
+		{0x4000, []byte{0x80, 0x80, 0x01}},
+		{^uint64(0), []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01}},
+	}
+	for _, test := range cases {
+		e := NewEncoder(nil)
+		e.WriteVarUint64(test.value)
+		if err := e.Err(); err != nil {
+			t.Fatalf("WriteVarUint64(%d): %v", test.value, err)
+		}
+		if !bytes.Equal(e.Bytes(), test.want) {
+			t.Errorf("WriteVarUint64(%d) = %x, want %x", test.value, e.Bytes(), test.want)
 		}
 	}
 }

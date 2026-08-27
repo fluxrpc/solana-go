@@ -3,7 +3,7 @@ module github.com/fluxrpc/solana-go/yellowstone
 go 1.26.4
 
 require (
-	github.com/fluxrpc/solana-go v0.0.0
+	github.com/fluxrpc/solana-go v0.1.5
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -25,5 +25,3 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
-
-replace github.com/fluxrpc/solana-go => ../
