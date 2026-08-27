@@ -1,0 +1,18 @@
+package system
+
+const (
+	CreateAccountInstruction InstructionType = iota
+	AssignInstruction
+	TransferInstruction
+	CreateAccountWithSeedInstruction
+	AdvanceNonceAccountInstruction
+	WithdrawNonceAccountInstruction
+	InitializeNonceAccountInstruction
+	AuthorizeNonceAccountInstruction
+	AllocateInstruction
+	AllocateWithSeedInstruction
+	AssignWithSeedInstruction
+	TransferWithSeedInstruction
+	UpgradeNonceAccountInstruction
+	CreateAccountAllowPrefundInstruction
+)
