@@ -1,6 +1,6 @@
 # Program codecs
 
-## Supported programs
+## Supported native programs
 
 | Package | Instruction variants |
 | --- | ---: |
@@ -12,9 +12,8 @@
 | `stake` | 18 |
 | `system` | 14 |
 | `vote` | 20 |
-| `token` | 21 |
-| `token-2022` | 26 base variants + extension codecs |
-| `token-metadata` | 25 Metaplex discriminators |
+
+SPL programs are intentionally outside this first native-program layer.
 
 This directory contains opt-in, handwritten codecs for Solana programs. Each
 program package owns its instruction layouts, account ordering, and decoding
