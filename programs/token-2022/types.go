@@ -105,6 +105,9 @@ type DecodedInstruction struct {
 	WithdrawWithheldTokensFromAccounts *WithdrawWithheldTokensFromAccounts
 	HarvestWithheldTokensToMint        *HarvestWithheldTokensToMint
 	SetTransferFee                     *SetTransferFee
+	ConfidentialTransfer               *ConfidentialTransferExtension
+	ConfidentialTransferFee            *ConfidentialTransferFeeExtension
+	ConfidentialMintBurn               *ConfidentialMintBurnExtension
 	InitializeMetadataPointer          *InitializeMetadataPointer
 	InitializeMetadata                 *InitializeMetadata
 }

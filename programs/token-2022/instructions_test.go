@@ -67,6 +67,56 @@ func TestDecodeExtensions(t *testing.T) {
 	}
 }
 
+func TestConfidentialInstructionFixtures(t *testing.T) {
+	account := solana.AccountMeta{PublicKey: token2022Key(1), IsWritable: true, IsSigner: true}
+	payload := []byte{2, 3, 5, 7}
+	tests := []struct {
+		name   string
+		family InstructionType
+		max    uint8
+	}{
+		{name: "transfer", family: ConfidentialTransferExtensionInstruction, max: ConfidentialTransfer_TransferWithSplitProofsInParallel},
+		{name: "fee", family: ConfidentialTransferFeeExtensionInstruction, max: ConfidentialTransferFee_DisableHarvestToMint},
+		{name: "mint-burn", family: ConfidentialMintBurnExtensionInstruction, max: ConfidentialMintBurn_Burn},
+	}
+	for _, test := range tests {
+		for sub := uint8(0); sub <= test.max; sub++ {
+			var inst solana.Instruction
+			switch test.family {
+			case ConfidentialTransferExtensionInstruction:
+				inst = NewConfidentialTransferInstruction(sub, payload, account)
+			case ConfidentialTransferFeeExtensionInstruction:
+				inst = NewConfidentialTransferFeeInstruction(sub, payload, account)
+			case ConfidentialMintBurnExtensionInstruction:
+				inst = NewConfidentialMintBurnInstruction(sub, payload, account)
+			}
+			data, err := inst.Data()
+			if err != nil {
+				t.Fatalf("%s %d: %v", test.name, sub, err)
+			}
+			decoded, err := DecodeInstruction(inst.Accounts(), data)
+			if err != nil {
+				t.Fatalf("%s %d: %v", test.name, sub, err)
+			}
+			var roundTrip []byte
+			switch test.family {
+			case ConfidentialTransferExtensionInstruction:
+				roundTrip, err = decoded.ConfidentialTransfer.Data()
+			case ConfidentialTransferFeeExtensionInstruction:
+				roundTrip, err = decoded.ConfidentialTransferFee.Data()
+			case ConfidentialMintBurnExtensionInstruction:
+				roundTrip, err = decoded.ConfidentialMintBurn.Data()
+			}
+			if err != nil || !bytes.Equal(roundTrip, data) {
+				t.Fatalf("%s %d: round trip = %x, %v", test.name, sub, roundTrip, err)
+			}
+			if len(inst.Accounts()) != 1 || !inst.Accounts()[0].IsWritable || !inst.Accounts()[0].IsSigner {
+				t.Fatalf("%s %d: accounts = %+v", test.name, sub, inst.Accounts())
+			}
+		}
+	}
+}
+
 func FuzzDecodeInstruction(f *testing.F) {
 	f.Add([]byte{byte(TransferFeeExtensionInstruction), 4})
 	f.Fuzz(func(t *testing.T, data []byte) { _, _ = DecodeInstruction(nil, data) })

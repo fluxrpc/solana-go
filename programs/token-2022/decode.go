@@ -80,6 +80,27 @@ func DecodeInstruction(accounts solana.AccountMetaSlice, data []byte) (DecodedIn
 		default:
 			return DecodedInstruction{}, fmt.Errorf("token-2022: unknown transfer-fee instruction: %d", sub)
 		}
+	case ConfidentialTransferExtensionInstruction:
+		sub := dec.ReadUint8()
+		out.ConfidentialTransfer = &ConfidentialTransferExtension{
+			extensionInstruction: extensionInstruction{accounts},
+			SubInstruction:       sub,
+			RawData:              dec.ReadBytes(dec.Remaining()),
+		}
+	case ConfidentialTransferFeeExtensionInstruction:
+		sub := dec.ReadUint8()
+		out.ConfidentialTransferFee = &ConfidentialTransferFeeExtension{
+			extensionInstruction: extensionInstruction{accounts},
+			SubInstruction:       sub,
+			RawData:              dec.ReadBytes(dec.Remaining()),
+		}
+	case ConfidentialMintBurnExtensionInstruction:
+		sub := dec.ReadUint8()
+		out.ConfidentialMintBurn = &ConfidentialMintBurnExtension{
+			extensionInstruction: extensionInstruction{accounts},
+			SubInstruction:       sub,
+			RawData:              dec.ReadBytes(dec.Remaining()),
+		}
 	case MetadataPointerExtensionInstruction:
 		sub := dec.ReadUint8()
 		if sub > 1 {
