@@ -82,24 +82,42 @@ func DecodeInstruction(accounts solana.AccountMetaSlice, data []byte) (DecodedIn
 		}
 	case ConfidentialTransferExtensionInstruction:
 		sub := dec.ReadUint8()
+		raw := dec.ReadBytes(dec.Remaining())
+		decoded, err := (ConfidentialTransferService{}).DecodeConfidentialTransferInstruction(sub, raw)
+		if err != nil {
+			return DecodedInstruction{}, err
+		}
 		out.ConfidentialTransfer = &ConfidentialTransferExtension{
 			extensionInstruction: extensionInstruction{accounts},
 			SubInstruction:       sub,
-			RawData:              dec.ReadBytes(dec.Remaining()),
+			RawData:              raw,
+			Decoded:              decoded,
 		}
 	case ConfidentialTransferFeeExtensionInstruction:
 		sub := dec.ReadUint8()
+		raw := dec.ReadBytes(dec.Remaining())
+		decoded, err := (ConfidentialTransferService{}).DecodeConfidentialTransferFeeInstruction(sub, raw)
+		if err != nil {
+			return DecodedInstruction{}, err
+		}
 		out.ConfidentialTransferFee = &ConfidentialTransferFeeExtension{
 			extensionInstruction: extensionInstruction{accounts},
 			SubInstruction:       sub,
-			RawData:              dec.ReadBytes(dec.Remaining()),
+			RawData:              raw,
+			Decoded:              decoded,
 		}
 	case ConfidentialMintBurnExtensionInstruction:
 		sub := dec.ReadUint8()
+		raw := dec.ReadBytes(dec.Remaining())
+		decoded, err := (ConfidentialTransferService{}).DecodeConfidentialMintBurnInstruction(sub, raw)
+		if err != nil {
+			return DecodedInstruction{}, err
+		}
 		out.ConfidentialMintBurn = &ConfidentialMintBurnExtension{
 			extensionInstruction: extensionInstruction{accounts},
 			SubInstruction:       sub,
-			RawData:              dec.ReadBytes(dec.Remaining()),
+			RawData:              raw,
+			Decoded:              decoded,
 		}
 	case MetadataPointerExtensionInstruction:
 		sub := dec.ReadUint8()

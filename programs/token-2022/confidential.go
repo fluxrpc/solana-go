@@ -2,48 +2,14 @@ package token2022
 
 import solana "github.com/fluxrpc/solana-go"
 
-const (
-	ConfidentialTransfer_InitializeMint uint8 = iota
-	ConfidentialTransfer_UpdateMint
-	ConfidentialTransfer_ConfigureAccount
-	ConfidentialTransfer_ApproveAccount
-	ConfidentialTransfer_EmptyAccount
-	ConfidentialTransfer_Deposit
-	ConfidentialTransfer_Withdraw
-	ConfidentialTransfer_Transfer
-	ConfidentialTransfer_ApplyPendingBalance
-	ConfidentialTransfer_EnableConfidentialCredits
-	ConfidentialTransfer_DisableConfidentialCredits
-	ConfidentialTransfer_EnableNonConfidentialCredits
-	ConfidentialTransfer_DisableNonConfidentialCredits
-	ConfidentialTransfer_TransferWithSplitProofs
-	ConfidentialTransfer_TransferWithSplitProofsInParallel
-)
-
-const (
-	ConfidentialTransferFee_InitializeConfidentialTransferFeeConfig uint8 = iota
-	ConfidentialTransferFee_WithdrawWithheldTokensFromMint
-	ConfidentialTransferFee_WithdrawWithheldTokensFromAccounts
-	ConfidentialTransferFee_HarvestWithheldTokensToMint
-	ConfidentialTransferFee_EnableHarvestToMint
-	ConfidentialTransferFee_DisableHarvestToMint
-)
-
-const (
-	ConfidentialMintBurn_InitializeMint uint8 = iota
-	ConfidentialMintBurn_UpdateDecryptableSupply
-	ConfidentialMintBurn_RotateSupplyElGamalPubkey
-	ConfidentialMintBurn_Mint
-	ConfidentialMintBurn_Burn
-)
-
 type ConfidentialTransferExtension struct {
 	extensionInstruction
 	SubInstruction uint8
 	RawData        []byte
+	Decoded        *ConfidentialTransferInstructionData
 }
 
-func NewConfidentialTransferInstruction(subInstruction uint8, rawData []byte, accounts ...solana.AccountMeta) *ConfidentialTransferExtension {
+func (ConfidentialTransferService) RawConfidentialTransferInstruction(subInstruction uint8, rawData []byte, accounts ...solana.AccountMeta) *ConfidentialTransferExtension {
 	metas := make(solana.AccountMetaSlice, len(accounts))
 	for i := range accounts {
 		metas[i] = &accounts[i]
@@ -62,9 +28,10 @@ type ConfidentialTransferFeeExtension struct {
 	extensionInstruction
 	SubInstruction uint8
 	RawData        []byte
+	Decoded        *ConfidentialTransferFeeInstructionData
 }
 
-func NewConfidentialTransferFeeInstruction(subInstruction uint8, rawData []byte, accounts ...solana.AccountMeta) *ConfidentialTransferFeeExtension {
+func (ConfidentialTransferService) RawConfidentialTransferFeeInstruction(subInstruction uint8, rawData []byte, accounts ...solana.AccountMeta) *ConfidentialTransferFeeExtension {
 	metas := make(solana.AccountMetaSlice, len(accounts))
 	for i := range accounts {
 		metas[i] = &accounts[i]
@@ -83,9 +50,10 @@ type ConfidentialMintBurnExtension struct {
 	extensionInstruction
 	SubInstruction uint8
 	RawData        []byte
+	Decoded        *ConfidentialMintBurnInstructionData
 }
 
-func NewConfidentialMintBurnInstruction(subInstruction uint8, rawData []byte, accounts ...solana.AccountMeta) *ConfidentialMintBurnExtension {
+func (ConfidentialTransferService) RawConfidentialMintBurnInstruction(subInstruction uint8, rawData []byte, accounts ...solana.AccountMeta) *ConfidentialMintBurnExtension {
 	metas := make(solana.AccountMetaSlice, len(accounts))
 	for i := range accounts {
 		metas[i] = &accounts[i]

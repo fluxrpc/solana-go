@@ -69,26 +69,27 @@ func TestDecodeExtensions(t *testing.T) {
 
 func TestConfidentialInstructionFixtures(t *testing.T) {
 	account := solana.AccountMeta{PublicKey: token2022Key(1), IsWritable: true, IsSigner: true}
-	payload := []byte{2, 3, 5, 7}
+	service := ConfidentialTransferService{}
 	tests := []struct {
 		name   string
 		family InstructionType
-		max    uint8
+		sizes  []int
 	}{
-		{name: "transfer", family: ConfidentialTransferExtensionInstruction, max: ConfidentialTransfer_TransferWithSplitProofsInParallel},
-		{name: "fee", family: ConfidentialTransferFeeExtensionInstruction, max: ConfidentialTransferFee_DisableHarvestToMint},
-		{name: "mint-burn", family: ConfidentialMintBurnExtensionInstruction, max: ConfidentialMintBurn_Burn},
+		{name: "transfer", family: ConfidentialTransferExtensionInstruction, sizes: []int{65, 33, 45, 0, 1, 9, 47, 167, 44, 0, 0, 0, 0, 169, 0}},
+		{name: "fee", family: ConfidentialTransferFeeExtensionInstruction, sizes: []int{64, 37, 38, 0, 0, 0}},
+		{name: "mint-burn", family: ConfidentialMintBurnExtensionInstruction, sizes: []int{68, 33, 36, 167, 167, 0}},
 	}
 	for _, test := range tests {
-		for sub := uint8(0); sub <= test.max; sub++ {
+		for sub, size := range test.sizes {
+			payload := make([]byte, size)
 			var inst solana.Instruction
 			switch test.family {
 			case ConfidentialTransferExtensionInstruction:
-				inst = NewConfidentialTransferInstruction(sub, payload, account)
+				inst = service.RawConfidentialTransferInstruction(uint8(sub), payload, account)
 			case ConfidentialTransferFeeExtensionInstruction:
-				inst = NewConfidentialTransferFeeInstruction(sub, payload, account)
+				inst = service.RawConfidentialTransferFeeInstruction(uint8(sub), payload, account)
 			case ConfidentialMintBurnExtensionInstruction:
-				inst = NewConfidentialMintBurnInstruction(sub, payload, account)
+				inst = service.RawConfidentialMintBurnInstruction(uint8(sub), payload, account)
 			}
 			data, err := inst.Data()
 			if err != nil {
