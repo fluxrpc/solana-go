@@ -18,16 +18,17 @@
 //		return err
 //	}
 //
-// ReadBytes and ReadBorshString return views that alias the input buffer
-// rather than copies — the same convention as TransactionFromBytes in the
-// root package. Use the Copy variants when the result must outlive the
-// buffer.
+// ReadBytes, ReadBorshString, and ReadBincodeString return views that alias the
+// input buffer rather than copies — the same convention as
+// TransactionFromBytes in the root package. Use the Copy variants when the
+// result must outlive the buffer.
 package binary
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"unicode/utf8"
 	"unsafe"
 
 	solana "github.com/fluxrpc/solana-go"
@@ -50,6 +51,9 @@ var (
 	// ErrOverflow is recorded when a length cannot be represented by its wire
 	// format or a requested byte count is negative.
 	ErrOverflow = errors.New("binary: length overflow")
+
+	// ErrInvalidUTF8 is recorded when a string contains invalid UTF-8 bytes.
+	ErrInvalidUTF8 = errors.New("binary: invalid UTF-8")
 )
 
 // Decoder reads little-endian and Borsh values from a byte slice.
@@ -99,6 +103,8 @@ func (d *Decoder) wrapErr() error {
 		d.err = fmt.Errorf("zero continuation byte at offset %d: %w", d.failPos, ErrNonCanonical)
 	case ErrOverflow:
 		d.err = fmt.Errorf("length %d at offset %d: %w", d.failArg, d.failPos, ErrOverflow)
+	case ErrInvalidUTF8:
+		d.err = fmt.Errorf("string at offset %d: %w", d.failPos, ErrInvalidUTF8)
 	}
 	return d.err
 }
@@ -275,6 +281,41 @@ func (d *Decoder) ReadBorshStringCopy() string {
 	return string(d.ReadBytes(int(d.ReadUint32())))
 }
 
+// ReadBincodeString reads the bincode String layout used by Solana's native
+// programs: a little-endian uint64 byte length followed by UTF-8 bytes. The
+// returned string aliases the input; use ReadBincodeStringCopy to take ownership.
+func (d *Decoder) ReadBincodeString() string {
+	b := d.readBincodeStringBytes()
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafe.String(&b[0], len(b))
+}
+
+// ReadBincodeStringCopy reads a bincode String as an owned Go string.
+func (d *Decoder) ReadBincodeStringCopy() string {
+	return string(d.readBincodeStringBytes())
+}
+
+func (d *Decoder) readBincodeStringBytes() []byte {
+	n := d.ReadUint64()
+	if d.err != nil {
+		return nil
+	}
+	maxInt := uint64(^uint(0) >> 1)
+	if n > maxInt {
+		d.fail(ErrOverflow, int(maxInt))
+		return nil
+	}
+	b := d.ReadBytes(int(n))
+	if d.err == nil && !utf8.Valid(b) {
+		d.pos -= len(b)
+		d.fail(ErrInvalidUTF8, len(b))
+		return nil
+	}
+	return b
+}
+
 // ReadOption reads a Borsh Option tag: a single byte that must be 0 (None)
 // or 1 (Some). It returns whether a value follows.
 func (d *Decoder) ReadOption() bool {
@@ -364,4 +405,36 @@ func (d *Decoder) readCompactU16Slow() int {
 	}
 	d.pos = p + 3
 	return value
+}
+
+// ReadVarUint64 reads canonical unsigned LEB128. Encodings longer than ten
+// bytes, values exceeding uint64, and non-minimal encodings are rejected.
+func (d *Decoder) ReadVarUint64() uint64 {
+	p := d.pos
+	if d.err != nil {
+		return 0
+	}
+	var value uint64
+	for index := 0; index < 10; index++ {
+		if len(d.data)-p <= index {
+			d.fail(ErrUnexpectedEOF, index+1)
+			return 0
+		}
+		current := d.data[p+index]
+		if index == 9 && current > 1 {
+			d.fail(ErrOverflow, index+1)
+			return 0
+		}
+		value |= uint64(current&0x7f) << (7 * index)
+		if current < 0x80 {
+			if index > 0 && current == 0 {
+				d.fail(ErrNonCanonical, index+1)
+				return 0
+			}
+			d.pos = p + index + 1
+			return value
+		}
+	}
+	d.fail(ErrOverflow, 10)
+	return 0
 }

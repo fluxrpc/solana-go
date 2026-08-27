@@ -22,13 +22,17 @@ var (
 	// Deploys, upgrades, and executes programs on the chain.
 	BPFLoaderProgramID            = MustPublicKeyFromBase58("BPFLoader2111111111111111111111111111111111")
 	BPFLoaderUpgradeableProgramID = MustPublicKeyFromBase58("BPFLoaderUpgradeab1e11111111111111111111111")
+	LoaderV4ProgramID             = MustPublicKeyFromBase58("LoaderV411111111111111111111111111111111111")
+	NativeLoaderID                = MustPublicKeyFromBase58("NativeLoader1111111111111111111111111111111")
 
 	// Verify secp256k1 public key recovery operations (ecrecover).
 	Secp256k1ProgramID = MustPublicKeyFromBase58("KeccakSecp256k11111111111111111111111111111")
 
 	FeatureProgramID = MustPublicKeyFromBase58("Feature111111111111111111111111111111111111")
 
-	ComputeBudget = MustPublicKeyFromBase58("ComputeBudget111111111111111111111111111111")
+	ComputeBudgetProgramID = MustPublicKeyFromBase58("ComputeBudget111111111111111111111111111111")
+	// ComputeBudget is retained as a compatibility alias.
+	ComputeBudget = ComputeBudgetProgramID
 
 	// Create and manage address lookup tables.
 	AddressLookupTableProgramID = MustPublicKeyFromBase58("AddressLookupTab1e1111111111111111111111111")

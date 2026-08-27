@@ -13,6 +13,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fluxrpc/base58 v1.2.0 h1:/BKqSC9I7KfhoJOcUVw2mZOlF22WvgZYoHqD3U9YPu0=
 github.com/fluxrpc/base58 v1.2.0/go.mod h1:lHCDrkJr1/MZuOnpfPE6a5DLhgvj5YzgVzOD18j9K50=
+github.com/fluxrpc/solana-go v0.1.5 h1:6oTz/BEOYqqUUhPSbZqS9L6NLp4fI/Ga46xCap9JymU=
+github.com/fluxrpc/solana-go v0.1.5/go.mod h1:BVLQM1tTflDRs8/avXdzhxrt8GNbsbTGAob4hEzPKnE=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=

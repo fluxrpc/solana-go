@@ -73,7 +73,8 @@ func TestTruncation(t *testing.T) {
 		{"Hash", 32, func(d *Decoder) { d.ReadHash() }},
 		{"COption", 4, func(d *Decoder) { d.ReadCOption() }},
 		{"Skip", 3, func(d *Decoder) { d.Skip(3) }},
-		{"BorshString", 5, func(d *Decoder) { d.ReadBorshString() }}, // u32 len 1 + 1 byte
+		{"BorshString", 5, func(d *Decoder) { d.ReadBorshString() }},     // u32 len 1 + 1 byte
+		{"BincodeString", 9, func(d *Decoder) { d.ReadBincodeString() }}, // u64 len 1 + 1 byte
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -81,6 +82,8 @@ func TestTruncation(t *testing.T) {
 			full := make([]byte, tc.need)
 			if tc.name == "BorshString" {
 				copy(full, le32(1)) // length 1, then 1 zero byte
+			} else if tc.name == "BincodeString" {
+				copy(full, le64(1))
 			}
 			d := NewDecoder(full)
 			tc.read(d)
@@ -226,6 +229,56 @@ func TestBorshString(t *testing.T) {
 	}
 }
 
+func TestBincodeString(t *testing.T) {
+	buf := append(le64(5), "hello"...)
+	buf = append(buf, le64(0)...)
+
+	d := NewDecoder(buf)
+	if got := d.ReadBincodeString(); got != "hello" {
+		t.Fatalf("ReadBincodeString = %q", got)
+	}
+	if got := d.ReadBincodeString(); got != "" {
+		t.Fatalf("empty ReadBincodeString = %q", got)
+	}
+	if err := d.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	d = NewDecoder(append(le64(100), 1))
+	_ = d.ReadBincodeStringCopy()
+	if !errors.Is(d.Err(), ErrUnexpectedEOF) {
+		t.Fatalf("oversized length: Err = %v", d.Err())
+	}
+
+	d = NewDecoder(le64(^uint64(0)))
+	_ = d.ReadBincodeString()
+	if !errors.Is(d.Err(), ErrOverflow) {
+		t.Fatalf("overflowing length: Err = %v", d.Err())
+	}
+
+	d = NewDecoder(append(le64(1), 0xff))
+	_ = d.ReadBincodeString()
+	if !errors.Is(d.Err(), ErrInvalidUTF8) {
+		t.Fatalf("invalid UTF-8: Err = %v", d.Err())
+	}
+}
+
+func TestBincodeStringOwnership(t *testing.T) {
+	aliasedData := append(le64(3), "one"...)
+	aliased := NewDecoder(aliasedData).ReadBincodeString()
+	aliasedData[8] = 'd'
+	if aliased != "dne" {
+		t.Fatalf("aliased string after mutation = %q", aliased)
+	}
+
+	copiedData := append(le64(3), "two"...)
+	copied := NewDecoder(copiedData).ReadBincodeStringCopy()
+	copiedData[8] = 'n'
+	if copied != "two" {
+		t.Fatalf("copied string after mutation = %q", copied)
+	}
+}
+
 func TestTags(t *testing.T) {
 	d := NewDecoder([]byte{0, 1, 2})
 	if d.ReadBool() != false || d.ReadBool() != true {
@@ -303,6 +356,50 @@ func TestCompactU16(t *testing.T) {
 	}
 }
 
+func TestVarUint64(t *testing.T) {
+	valid := []struct {
+		in   []byte
+		want uint64
+	}{
+		{[]byte{0x00}, 0},
+		{[]byte{0x7f}, 0x7f},
+		{[]byte{0x80, 0x01}, 0x80},
+		{[]byte{0x80, 0x80, 0x01}, 0x4000},
+		{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01}, ^uint64(0)},
+	}
+	for _, test := range valid {
+		d := NewDecoder(test.in)
+		if got := d.ReadVarUint64(); got != test.want || d.Err() != nil {
+			t.Errorf("ReadVarUint64(%x) = %d, %v; want %d", test.in, got, d.Err(), test.want)
+		}
+		if d.Pos() != len(test.in) {
+			t.Errorf("ReadVarUint64(%x) consumed %d bytes", test.in, d.Pos())
+		}
+	}
+
+	invalid := []struct {
+		in  []byte
+		err error
+	}{
+		{nil, ErrUnexpectedEOF},
+		{[]byte{0x80}, ErrUnexpectedEOF},
+		{[]byte{0x80, 0x00}, ErrNonCanonical},
+		{[]byte{0x81, 0x00}, ErrNonCanonical},
+		{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02}, ErrOverflow},
+		{[]byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80}, ErrOverflow},
+	}
+	for _, test := range invalid {
+		d := NewDecoder(test.in)
+		d.ReadVarUint64()
+		if !errors.Is(d.Err(), test.err) {
+			t.Errorf("ReadVarUint64(%x) Err = %v, want %v", test.in, d.Err(), test.err)
+		}
+		if d.Pos() != 0 {
+			t.Errorf("ReadVarUint64(%x) advanced to %d", test.in, d.Pos())
+		}
+	}
+}
+
 // TestDecodeSPLTokenAccount decodes a hand-built 165-byte SPL token account,
 // the layout dto/json_parsed and token_2022_go read on the hot path.
 func TestDecodeSPLTokenAccount(t *testing.T) {
@@ -362,7 +459,7 @@ func FuzzDecoder(f *testing.F) {
 		for _, op := range script {
 			prev := d.Pos()
 			errBefore := d.Err()
-			switch op % 14 {
+			switch op % 16 {
 			case 0:
 				d.ReadUint8()
 			case 1:
@@ -386,11 +483,15 @@ func FuzzDecoder(f *testing.F) {
 			case 10:
 				d.ReadBorshString()
 			case 11:
-				d.ReadCOption()
+				d.ReadBincodeString()
 			case 12:
-				d.ReadCompactU16()
+				d.ReadCOption()
 			case 13:
+				d.ReadCompactU16()
+			case 14:
 				d.Skip(int(op) % 5)
+			case 15:
+				d.ReadVarUint64()
 			}
 			if d.Pos() < prev || d.Pos() > len(data) {
 				t.Fatalf("pos moved from %d to %d (len %d)", prev, d.Pos(), len(data))

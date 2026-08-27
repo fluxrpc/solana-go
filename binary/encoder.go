@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"unicode/utf8"
 
 	solana "github.com/fluxrpc/solana-go"
 )
@@ -56,6 +57,8 @@ func (e *Encoder) Err() error {
 	}
 	if e.err == ErrOverflow {
 		e.err = fmt.Errorf("length %d at offset %d: %w", e.failArg, e.failPos, ErrOverflow)
+	} else if e.err == ErrInvalidUTF8 {
+		e.err = fmt.Errorf("string at offset %d: %w", e.failPos, ErrInvalidUTF8)
 	}
 	return e.err
 }
@@ -163,6 +166,21 @@ func (e *Encoder) WriteBorshString(v string) {
 	e.data = append(e.data, v...)
 }
 
+// WriteBincodeString writes the bincode String layout used by Solana's
+// native programs: a little-endian uint64 byte length followed by UTF-8 bytes.
+// This differs from Borsh strings, whose length prefix is uint32.
+func (e *Encoder) WriteBincodeString(v string) {
+	if e.err != nil {
+		return
+	}
+	if !utf8.ValidString(v) {
+		e.fail(ErrInvalidUTF8, len(v))
+		return
+	}
+	e.data = binary.LittleEndian.AppendUint64(e.data, uint64(len(v)))
+	e.data = append(e.data, v...)
+}
+
 // WriteOption writes a Borsh Option tag: one byte containing 0 (None) or 1
 // (Some).
 func (e *Encoder) WriteOption(v bool) {
@@ -202,4 +220,17 @@ func (e *Encoder) WriteCompactU16(v int) {
 		return
 	}
 	e.data = append(e.data, byte(v)|0x80, byte(v>>7)|0x80, byte(v>>14))
+}
+
+// WriteVarUint64 writes v as canonical unsigned LEB128. Solana's compact Vote
+// and TowerSync payloads use this encoding for delta-compressed slot offsets.
+func (e *Encoder) WriteVarUint64(v uint64) {
+	if e.err != nil {
+		return
+	}
+	for v >= 0x80 {
+		e.data = append(e.data, byte(v)|0x80)
+		v >>= 7
+	}
+	e.data = append(e.data, byte(v))
 }

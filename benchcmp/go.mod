@@ -4,11 +4,12 @@ go 1.26.4
 
 require (
 	github.com/bytedance/sonic v1.15.2
-	github.com/fluxrpc/solana-go v0.0.0
+	github.com/fluxrpc/solana-go v0.1.5
 	github.com/gagliardetto/binary v0.8.0
 	github.com/gagliardetto/solana-go v1.22.0
 	github.com/gobwas/ws v1.4.0
 	github.com/goccy/go-json v0.10.6
+	github.com/solana-foundation/solana-go/v2 v2.0.0
 )
 
 require (
@@ -48,5 +49,3 @@ require (
 	golang.org/x/term v0.45.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 )
-
-replace github.com/fluxrpc/solana-go => ../

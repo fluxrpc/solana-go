@@ -12,6 +12,8 @@ jobs:
   core:
     name: core (root module)
     runs-on: ubuntu-latest
+    env:
+      GOWORK: off
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -31,6 +33,8 @@ jobs:
   yellowstone:
     name: yellowstone (nested module)
     runs-on: ubuntu-latest
+    env:
+      GOWORK: off
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -56,9 +60,8 @@ jobs:
       - name: vet
         working-directory: benchcmp
         run: go vet ./...
-      # Runs the parity tests (byte-identical output vs upstream) and
-      # compiles every benchmark; the benchmarks themselves only run
-      # locally where the README numbers are generated.
-      - name: parity tests
+      # Runs byte-parity and allocation-regression tests and compiles every
+      # benchmark; timing benchmarks run locally on controlled hardware.
+      - name: parity and allocation tests
         working-directory: benchcmp
         run: go test ./...
