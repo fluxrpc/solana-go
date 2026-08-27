@@ -111,6 +111,49 @@ func BenchmarkSignature_UnmarshalJSON(b *testing.B) {
 	})
 }
 
+func BenchmarkSignature_MarshalText(b *testing.B) {
+	b.Run("flux", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkBytes, sinkErr = fluxSig.MarshalText()
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+	b.Run("gagl", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkBytes, sinkErr = gaglSig.MarshalText()
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+}
+
+func BenchmarkSignature_UnmarshalText(b *testing.B) {
+	text := []byte(sigBase58)
+	b.Run("flux", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkErr = sinkFluxSig.UnmarshalText(text)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+	b.Run("gagl", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkErr = sinkGaglSig.UnmarshalText(text)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+}
+
 // A real signed message pair for Verify: sign with a fixed keypair via each
 // implementation's own types.
 func BenchmarkSignature_Verify(b *testing.B) {

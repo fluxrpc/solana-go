@@ -55,3 +55,46 @@ func BenchmarkHash_FromBase58(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkHash_MarshalText(b *testing.B) {
+	b.Run("flux", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkBytes, sinkErr = fluxHash.MarshalText()
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+	b.Run("gagl", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkBytes, sinkErr = gaglHash.MarshalText()
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+}
+
+func BenchmarkHash_UnmarshalText(b *testing.B) {
+	text := []byte(hashBase58)
+	b.Run("flux", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkErr = sinkFluxHash.UnmarshalText(text)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+	b.Run("gagl", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkErr = sinkGaglHash.UnmarshalText(text)
+		}
+		if sinkErr != nil {
+			b.Fatal(sinkErr)
+		}
+	})
+}

@@ -54,6 +54,12 @@ func (h Hash) MarshalJSON() ([]byte, error) {
 	return PublicKey(h).MarshalJSON()
 }
 
+// MarshalText implements encoding.TextMarshaler, encoding the hash as base58.
+// This also allows Hash to be used as a JSON object key.
+func (h Hash) MarshalText() ([]byte, error) {
+	return []byte(h.String()), nil
+}
+
 // UnmarshalJSON implements json.Unmarshaler, decoding a base58 JSON
 // string.
 func (h *Hash) UnmarshalJSON(data []byte) error {
@@ -65,6 +71,17 @@ func (h *Hash) UnmarshalJSON(data []byte) error {
 	decoded, err := HashFromBase58(s)
 	if err != nil {
 		return fmt.Errorf("invalid hash %q: %w", s, err)
+	}
+	*h = decoded
+	return nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler, decoding a base58 hash.
+// This also allows Hash to be used as a JSON object key.
+func (h *Hash) UnmarshalText(text []byte) error {
+	decoded, err := HashFromBase58(unsafeString(text))
+	if err != nil {
+		return fmt.Errorf("invalid hash %q: %w", text, err)
 	}
 	*h = decoded
 	return nil

@@ -11,7 +11,7 @@ Development is sponsored and maintained by **[FluxRPC](https://fluxrpc.com)** â€
 - Base58 encoding/decoding via [fluxrpc/base58](https://github.com/fluxrpc/base58) (SIMD-accelerated, fixed-size fast paths for 32/64-byte values).
 - Zero-allocation-conscious JSON marshaling (direct quoted-buffer writes, no `json.Marshal` round trips for base58/base64 strings); decoding via [bytedance/sonic](https://github.com/bytedance/sonic).
 - Single-allocation binary (wire format) encoding with exact size precomputation; zero-allocation PDA derivation.
-- Only supported serializations: `String`, `Bytes` (binary wire format) and JSON. `PublicKey` additionally supports text marshaling so it works as a JSON object key; no BSON or kitchen sink.
+- Only supported serializations: `String`, `Bytes` (binary wire format) and JSON. `PublicKey`, `Hash`, and `Signature` additionally support text marshaling so they work as JSON object keys; no BSON or kitchen sink.
 - Five dependencies, each earning its keep: `fluxrpc/base58` (base58), `bytedance/sonic` (JSON decoding), `oasisprotocol/curve25519-voi` (ed25519 sign/verify), `klauspost/compress` (base64+zstd account data), `gobwas/ws` (raw WebSocket frames). The gRPC stack lives only in the nested `yellowstone` module.
 
 Full Solana spec compliance is a hard requirement: every RPC method and response field, all nine pubsub subscriptions, legacy, v0 and v1 ([SIMD-0385](https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0385-transaction-v1.md)) transactions, base64+zstd account data.

@@ -78,6 +78,13 @@ func (s Signature) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
+// MarshalText implements encoding.TextMarshaler, encoding the signature as
+// base58. This also allows Signature to be used as a JSON object key.
+func (s Signature) MarshalText() ([]byte, error) {
+	buf := make([]byte, 0, base58.EncodedMaxLen64)
+	return base58.AppendEncode64(buf, (*[64]byte)(&s)), nil
+}
+
 // UnmarshalJSON implements json.Unmarshaler, decoding a base58 JSON
 // string.
 func (s *Signature) UnmarshalJSON(data []byte) error {
@@ -89,6 +96,17 @@ func (s *Signature) UnmarshalJSON(data []byte) error {
 	decoded, err := SignatureFromBase58(str)
 	if err != nil {
 		return fmt.Errorf("invalid signature %q: %w", str, err)
+	}
+	*s = decoded
+	return nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler, decoding a base58
+// signature. This also allows Signature to be used as a JSON object key.
+func (s *Signature) UnmarshalText(text []byte) error {
+	decoded, err := SignatureFromBase58(unsafeString(text))
+	if err != nil {
+		return fmt.Errorf("invalid signature %q: %w", text, err)
 	}
 	*s = decoded
 	return nil
