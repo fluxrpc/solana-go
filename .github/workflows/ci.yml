@@ -30,6 +30,24 @@ jobs:
       - name: test
         run: go test -race ./...
 
+  token-2022:
+    name: token-2022 (nested module)
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: off
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: programs/token-2022/go.mod
+          cache-dependency-path: programs/token-2022/go.sum
+      - name: vet
+        working-directory: programs/token-2022
+        run: go vet ./...
+      - name: test
+        working-directory: programs/token-2022
+        run: go test -race ./...
+
   yellowstone:
     name: yellowstone (nested module)
     runs-on: ubuntu-latest

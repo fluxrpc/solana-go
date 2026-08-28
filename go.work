@@ -3,5 +3,6 @@ go 1.26.4
 use (
 	.
 	./benchcmp
+	./programs/token-2022
 	./yellowstone
 )
