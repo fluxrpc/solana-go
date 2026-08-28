@@ -73,9 +73,29 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	computeUnitLimit := uint32(1_400_000)
+	recentBlockhash := solana.Hash{1}
+	transaction, err := solana.NewTransactionV1(
+		plan.Instructions,
+		recentBlockhash,
+		solana.TransactionConfig{ComputeUnitLimit: &computeUnitLimit},
+		solana.TransactionPayer(authority.PublicKey()),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := transaction.Sign(authority.PrivateKeyFor); err != nil {
+		log.Fatal(err)
+	}
+	raw, err := transaction.MarshalBinary()
+	if err != nil {
+		log.Fatal(err)
+	}
+	encoded := solana.Base64(raw).String()
 
 	fmt.Printf("prepared %d instructions for a confidential transfer of %d tokens\n", len(plan.Instructions), transferAmount)
 	fmt.Printf("source balance: %d -> %d\n", initialBalance, remainingBalance)
+	fmt.Printf("signed v1 transaction: %d wire bytes, %d base64 bytes\n", len(raw), len(encoded))
 	for index, instruction := range plan.Instructions {
 		data, err := instruction.Data()
 		if err != nil {

@@ -54,3 +54,12 @@ func NewWalletFromMnemonic(mnemonic, passphrase string) (*Wallet, error) {
 func (a *Wallet) PublicKey() PublicKey {
 	return a.PrivateKey.PublicKey()
 }
+
+// PrivateKeyFor returns this wallet's private key when publicKey matches it.
+// It can be passed directly to Transaction.Sign or TransactionV1.Sign.
+func (a *Wallet) PrivateKeyFor(publicKey PublicKey) *PrivateKey {
+	if publicKey != a.PublicKey() {
+		return nil
+	}
+	return &a.PrivateKey
+}
