@@ -322,15 +322,15 @@ Core i7-9700K using Go 1.26.4 under linux/amd64.
 
 | Proof workflow | native Go | PR #484 WASM | speedup | native B/op | WASM B/op | native allocs/op | WASM allocs/op |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Generate transfer | 42.5 ms | 183.5 ms | 4.3x | 2.14 MB | 0.78 MB | 4,655 | 525 |
-| Generate transfer with fee | 46.5 ms | 401.2 ms | 8.6x | 4.25 MB | 1.65 MB | 9,170 | 1,113 |
-| Verify transfer | 5.65 ms | 21.05 ms | 3.7x | 209 KB | 111 KB | 1,524 | 52 |
-| Verify transfer with fee | 9.33 ms | 36.49 ms | 3.9x | 399 KB | 184 KB | 2,856 | 86 |
+| Generate transfer | 18.9 ms | 183.5 ms | 9.7x | 2.09 MB | 0.78 MB | 2,733 | 525 |
+| Generate transfer with fee | 34.8 ms | 401.2 ms | 11.5x | 4.14 MB | 1.65 MB | 5,318 | 1,113 |
+| Verify transfer | 2.27 ms | 21.05 ms | 9.3x | 166 KB | 111 KB | 879 | 52 |
+| Verify transfer with fee | 4.00 ms | 36.49 ms | 9.1x | 312 KB | 184 KB | 1,572 | 86 |
 
 Native proof operations are substantially faster but create more Go heap
 objects. The WASM allocation figures do not include all retained linear memory
-or the compiled runtime. One-shot initialization measured 235 ms and 5.25 MB
-for the native service's discrete-log table versus 153 ms and 15.3 MB for PR
+or the compiled runtime. One-shot initialization measured 90.0 ms and 7.57 MB
+for the native service versus 153 ms and 15.3 MB for PR
 #484's first lazy WASM operation; these initialize different supporting state
 and are therefore indicative rather than directly equivalent.
 
@@ -338,7 +338,8 @@ Run the committed native benchmarks with:
 
 ```bash
 cd programs/token-2022
-go test -run '^$' -bench '^(BenchmarkConfidentialTransferServiceStart|BenchmarkGenerateConfidentialTransfer|BenchmarkVerifyConfidentialTransfer)' -benchmem -benchtime=10x -count=5
+go test -run '^$' -bench '^(BenchmarkGenerateConfidentialTransfer|BenchmarkVerifyConfidentialTransfer)' -benchmem -benchtime=10x -count=5
+go test -run '^$' -bench '^BenchmarkConfidentialTransferServiceStart$' -benchmem -benchtime=1x -count=5
 ```
 
 ### Account cache

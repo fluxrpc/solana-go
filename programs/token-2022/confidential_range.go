@@ -305,17 +305,12 @@ func (service ConfidentialTransferService) newBatchedRangeProof(amounts []uint64
 		return batchedRangeProof{}, err
 	}
 	q := curve.NewRistrettoPoint().Mul(curve.RISTRETTO_BASEPOINT_POINT, w)
-	gFactors := make([]*scalar.Scalar, totalBits)
-	for index := range gFactors {
-		gFactors[index] = scalar.New().One()
-	}
 	hFactors := service.scalarPowers(scalar.New().Invert(y), totalBits)
 	if _, err := service.transcriptChallengeScalar(transcript, "c"); err != nil {
 		return batchedRangeProof{}, err
 	}
 	innerProduct, err := service.newRangeInnerProductProof(
 		q,
-		gFactors,
 		hFactors,
 		generators,
 		service.evaluateRangeVectorPolynomial(leftPolynomial, x),
@@ -343,9 +338,10 @@ func (service ConfidentialTransferService) newBatchedRangeProof(amounts []uint64
 }
 
 func (ConfidentialTransferService) randomScalars(size int, random io.Reader) ([]*scalar.Scalar, error) {
+	storage := make([]scalar.Scalar, size)
 	values := make([]*scalar.Scalar, size)
 	for index := range values {
-		value, err := scalar.New().SetRandom(random)
+		value, err := storage[index].SetRandom(random)
 		if err != nil {
 			return nil, err
 		}

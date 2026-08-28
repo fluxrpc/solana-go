@@ -262,7 +262,10 @@ func (service ConfidentialTransferService) validateRistrettoPoints(data []byte, 
 	return nil
 }
 
-func (ConfidentialTransferService) pedersenOpeningBasepoint() (*curve.RistrettoPoint, error) {
+func (service ConfidentialTransferService) pedersenOpeningBasepoint() (*curve.RistrettoPoint, error) {
+	if service.pedersenOpeningPoint != nil {
+		return service.pedersenOpeningPoint, nil
+	}
 	hash := sha3.Sum512(curve.RISTRETTO_BASEPOINT_COMPRESSED[:])
 	return curve.NewRistrettoPoint().SetUniformBytes(hash[:])
 }

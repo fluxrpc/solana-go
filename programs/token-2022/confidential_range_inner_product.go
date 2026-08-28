@@ -15,9 +15,9 @@ type rangeInnerProductProof struct {
 	b     *scalar.Scalar
 }
 
-func (service ConfidentialTransferService) newRangeInnerProductProof(q *curve.RistrettoPoint, gFactors, hFactors []*scalar.Scalar, generators rangeProofGenerators, a, b []*scalar.Scalar, transcript *merlin.Transcript) (rangeInnerProductProof, error) {
+func (service ConfidentialTransferService) newRangeInnerProductProof(q *curve.RistrettoPoint, hFactors []*scalar.Scalar, generators rangeProofGenerators, a, b []*scalar.Scalar, transcript *merlin.Transcript) (rangeInnerProductProof, error) {
 	size := len(generators.g)
-	if len(generators.h) != size || len(a) != size || len(b) != size || len(gFactors) != size || len(hFactors) != size || size == 0 || size&(size-1) != 0 {
+	if len(generators.h) != size || len(a) != size || len(b) != size || len(hFactors) != size || size == 0 || size&(size-1) != 0 {
 		return rangeInnerProductProof{}, fmt.Errorf("generate range inner product proof: invalid vector length")
 	}
 	service.appendRangeInnerProductDomainSeparator(transcript, uint64(size))
@@ -48,8 +48,8 @@ func (service ConfidentialTransferService) newRangeInnerProductProof(q *curve.Ri
 		rightScalars := make([]*scalar.Scalar, 0, half*2+1)
 		if first {
 			for index := 0; index < half; index++ {
-				leftScalars = append(leftScalars, scalar.New().Mul(aLeft[index], gFactors[half+index]))
-				rightScalars = append(rightScalars, scalar.New().Mul(aRight[index], gFactors[index]))
+				leftScalars = append(leftScalars, aLeft[index])
+				rightScalars = append(rightScalars, aRight[index])
 			}
 			for index := 0; index < half; index++ {
 				leftScalars = append(leftScalars, scalar.New().Mul(bRight[index], hFactors[index]))
@@ -87,7 +87,7 @@ func (service ConfidentialTransferService) newRangeInnerProductProof(q *curve.Ri
 			bLeft[index] = scalar.New().Add(scalar.New().Mul(bLeft[index], uInverse), scalar.New().Mul(u, bRight[index]))
 			if first {
 				gLeft[index] = curve.NewRistrettoPoint().MultiscalarMul(
-					[]*scalar.Scalar{scalar.New().Mul(uInverse, gFactors[index]), scalar.New().Mul(u, gFactors[half+index])},
+					[]*scalar.Scalar{uInverse, u},
 					[]*curve.RistrettoPoint{gLeft[index], gRight[index]},
 				)
 				hLeft[index] = curve.NewRistrettoPoint().MultiscalarMul(

@@ -19,6 +19,13 @@ type rangeVectorPolynomial struct {
 }
 
 func (service ConfidentialTransferService) rangeGenerators(size int) (rangeProofGenerators, error) {
+	if len(service.rangeProofGenerators.g) >= size {
+		return rangeProofGenerators{g: service.rangeProofGenerators.g[:size], h: service.rangeProofGenerators.h[:size]}, nil
+	}
+	return service.newRangeProofGenerators(size)
+}
+
+func (service ConfidentialTransferService) newRangeProofGenerators(size int) (rangeProofGenerators, error) {
 	g, err := service.rangeGeneratorChain("G", size)
 	if err != nil {
 		return rangeProofGenerators{}, err
@@ -54,13 +61,15 @@ func (ConfidentialTransferService) rangeGeneratorChain(label string, size int) (
 }
 
 func (ConfidentialTransferService) newRangeVectorPolynomial(size int) rangeVectorPolynomial {
+	constant := make([]scalar.Scalar, size)
+	linear := make([]scalar.Scalar, size)
 	polynomial := rangeVectorPolynomial{
 		constant: make([]*scalar.Scalar, size),
 		linear:   make([]*scalar.Scalar, size),
 	}
 	for index := 0; index < size; index++ {
-		polynomial.constant[index] = scalar.New()
-		polynomial.linear[index] = scalar.New()
+		polynomial.constant[index] = &constant[index]
+		polynomial.linear[index] = &linear[index]
 	}
 	return polynomial
 }
@@ -112,10 +121,11 @@ func (ConfidentialTransferService) scalarInnerProduct(left, right []*scalar.Scal
 }
 
 func (ConfidentialTransferService) scalarPowers(value *scalar.Scalar, size int) []*scalar.Scalar {
+	storage := make([]scalar.Scalar, size)
 	powers := make([]*scalar.Scalar, size)
 	current := scalar.New().One()
 	for index := range powers {
-		powers[index] = scalar.New().Set(current)
+		powers[index] = storage[index].Set(current)
 		current.Mul(current, value)
 	}
 	return powers
@@ -131,17 +141,19 @@ func (service ConfidentialTransferService) scalarPowerSum(value *scalar.Scalar, 
 }
 
 func (ConfidentialTransferService) cloneScalars(values []*scalar.Scalar) []*scalar.Scalar {
+	storage := make([]scalar.Scalar, len(values))
 	cloned := make([]*scalar.Scalar, len(values))
 	for index := range values {
-		cloned[index] = scalar.New().Set(values[index])
+		cloned[index] = storage[index].Set(values[index])
 	}
 	return cloned
 }
 
 func (ConfidentialTransferService) clonePoints(values []*curve.RistrettoPoint) []*curve.RistrettoPoint {
+	storage := make([]curve.RistrettoPoint, len(values))
 	cloned := make([]*curve.RistrettoPoint, len(values))
 	for index := range values {
-		cloned[index] = curve.NewRistrettoPoint().Set(values[index])
+		cloned[index] = storage[index].Set(values[index])
 	}
 	return cloned
 }
