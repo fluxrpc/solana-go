@@ -313,7 +313,8 @@ The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go ge
 
 The [`programs/token-2022`](programs/token-2022) nested module implements the
 full confidential-transfer proof suite natively in Go. Its cryptographic
-dependencies remain outside the root module graph.
+dependencies remain outside the root module graph. See the runnable
+[confidential transfer example](examples/confidential-transfer).
 
 The table below compares equivalent proof bundles against
 [solana-foundation/solana-go PR #484](https://github.com/solana-foundation/solana-go/pull/484)
