@@ -309,6 +309,40 @@ The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go ge
 | `Update.Transaction` | 375 ns/op, 7 allocs |
 | `Update.Account` | 55 ns/op, 1 alloc |
 
+### Token-2022 confidential transfers
+
+The [`programs/token-2022`](programs/token-2022) nested module implements the
+full confidential-transfer proof suite natively in Go. Its cryptographic
+dependencies remain outside the root module graph. See the runnable
+[confidential transfer example](examples/confidential-transfer).
+
+The table below compares equivalent proof bundles against
+[solana-foundation/solana-go PR #484](https://github.com/solana-foundation/solana-go/pull/484)
+at commit `1e17bcde`. Results are medians of five 10-iteration runs on an Intel
+Core i7-9700K using Go 1.26.4 under linux/amd64.
+
+| Proof workflow | native Go | PR #484 WASM | speedup | native B/op | WASM B/op | native allocs/op | WASM allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Generate transfer | 18.9 ms | 183.5 ms | 9.7x | 2.09 MB | 0.78 MB | 2,733 | 525 |
+| Generate transfer with fee | 34.8 ms | 401.2 ms | 11.5x | 4.14 MB | 1.65 MB | 5,318 | 1,113 |
+| Verify transfer | 2.27 ms | 21.05 ms | 9.3x | 166 KB | 111 KB | 879 | 52 |
+| Verify transfer with fee | 4.00 ms | 36.49 ms | 9.1x | 312 KB | 184 KB | 1,572 | 86 |
+
+Native proof operations are substantially faster but create more Go heap
+objects. The WASM allocation figures do not include all retained linear memory
+or the compiled runtime. One-shot initialization measured 90.0 ms and 7.57 MB
+for the native service versus 153 ms and 15.3 MB for PR
+#484's first lazy WASM operation; these initialize different supporting state
+and are therefore indicative rather than directly equivalent.
+
+Run the committed native benchmarks with:
+
+```bash
+cd programs/token-2022
+go test -run '^$' -bench '^(BenchmarkGenerateConfidentialTransfer|BenchmarkVerifyConfidentialTransfer)' -benchmem -benchtime=10x -count=5
+go test -run '^$' -bench '^BenchmarkConfidentialTransferServiceStart$' -benchmem -benchtime=1x -count=5
+```
+
 ### Account cache
 
 | benchmark | result |

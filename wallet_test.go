@@ -17,6 +17,9 @@ func TestNewWallet(t *testing.T) {
 	if NewWallet().PublicKey() == w.PublicKey() {
 		t.Fatal("two random wallets share a key")
 	}
+	if w.PrivateKeyFor(w.PublicKey()) != &w.PrivateKey || w.PrivateKeyFor(PublicKey{}) != nil {
+		t.Fatal("PrivateKeyFor mismatch")
+	}
 }
 
 func TestWalletFromPrivateKeyBase58(t *testing.T) {
