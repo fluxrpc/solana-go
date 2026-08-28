@@ -309,6 +309,38 @@ The [`yellowstone`](yellowstone/) package is a separate nested Go module (`go ge
 | `Update.Transaction` | 375 ns/op, 7 allocs |
 | `Update.Account` | 55 ns/op, 1 alloc |
 
+### Token-2022 confidential transfers
+
+The [`programs/token-2022`](programs/token-2022) nested module implements the
+full confidential-transfer proof suite natively in Go. Its cryptographic
+dependencies remain outside the root module graph.
+
+The table below compares equivalent proof bundles against
+[solana-foundation/solana-go PR #484](https://github.com/solana-foundation/solana-go/pull/484)
+at commit `1e17bcde`. Results are medians of five 10-iteration runs on an Intel
+Core i7-9700K using Go 1.26.4 under linux/amd64.
+
+| Proof workflow | native Go | PR #484 WASM | speedup | native B/op | WASM B/op | native allocs/op | WASM allocs/op |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Generate transfer | 42.5 ms | 183.5 ms | 4.3x | 2.14 MB | 0.78 MB | 4,655 | 525 |
+| Generate transfer with fee | 46.5 ms | 401.2 ms | 8.6x | 4.25 MB | 1.65 MB | 9,170 | 1,113 |
+| Verify transfer | 5.65 ms | 21.05 ms | 3.7x | 209 KB | 111 KB | 1,524 | 52 |
+| Verify transfer with fee | 9.33 ms | 36.49 ms | 3.9x | 399 KB | 184 KB | 2,856 | 86 |
+
+Native proof operations are substantially faster but create more Go heap
+objects. The WASM allocation figures do not include all retained linear memory
+or the compiled runtime. One-shot initialization measured 235 ms and 5.25 MB
+for the native service's discrete-log table versus 153 ms and 15.3 MB for PR
+#484's first lazy WASM operation; these initialize different supporting state
+and are therefore indicative rather than directly equivalent.
+
+Run the committed native benchmarks with:
+
+```bash
+cd programs/token-2022
+go test -run '^$' -bench '^(BenchmarkConfidentialTransferServiceStart|BenchmarkGenerateConfidentialTransfer|BenchmarkVerifyConfidentialTransfer)' -benchmem -benchtime=10x -count=5
+```
+
 ### Account cache
 
 | benchmark | result |
