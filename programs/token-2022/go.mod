@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/ericlagergren/siv v0.0.0-20220507050439-0b757b3aa5f1
-	github.com/fluxrpc/solana-go v0.1.7-0.20260827192221-988584af3560
+	github.com/fluxrpc/solana-go v0.1.7-0.20260828103622-746264ebe2d0
 	github.com/gtank/merlin v0.1.1
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20251114093237-2ab5a27a1729
 	golang.org/x/crypto v0.55.0
@@ -25,5 +25,3 @@ require (
 	golang.org/x/arch v0.30.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 )
-
-replace github.com/fluxrpc/solana-go => ../..

@@ -19,6 +19,8 @@ github.com/ericlagergren/subtle v0.0.0-20220507045147-890d697da010 h1:fuGucgPk5d
 github.com/ericlagergren/subtle v0.0.0-20220507045147-890d697da010/go.mod h1:JtBcj7sBuTTRupn7c2bFspMDIObMJsVK8TeUvpShPok=
 github.com/fluxrpc/base58 v1.2.0 h1:/BKqSC9I7KfhoJOcUVw2mZOlF22WvgZYoHqD3U9YPu0=
 github.com/fluxrpc/base58 v1.2.0/go.mod h1:lHCDrkJr1/MZuOnpfPE6a5DLhgvj5YzgVzOD18j9K50=
+github.com/fluxrpc/solana-go v0.1.7-0.20260828103622-746264ebe2d0 h1:KMVzvYJmZDjlXsPqh6LtseinjgfCfZpwh35Cpme0iTs=
+github.com/fluxrpc/solana-go v0.1.7-0.20260828103622-746264ebe2d0/go.mod h1:BVLQM1tTflDRs8/avXdzhxrt8GNbsbTGAob4hEzPKnE=
 github.com/google/tink/go v1.6.1 h1:t7JHqO8Ath2w2ig5vjwQYJzhGEZymedQc90lQXUBa4I=
 github.com/google/tink/go v1.6.1/go.mod h1:IGW53kTgag+st5yPhKKwJ6u2l+SSp5/v9XF7spovjlY=
 github.com/gtank/merlin v0.1.1 h1:eQ90iG7K9pOhtereWsmyRJ6RAwcP4tHTDBHXNg+u5is=
