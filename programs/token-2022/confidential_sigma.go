@@ -55,7 +55,8 @@ func (service ConfidentialTransferService) generatePubkeyValidityProofWithReader
 	return ZKProofData{Discriminator: 4, Context: context, Proof: proof[:]}, nil
 }
 
-func (service ConfidentialTransferService) VerifyPubkeyValidityProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyPubkeyValidityProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	if data.Discriminator != 4 || len(data.Context) != 32 || len(data.Proof) != 64 {
 		return fmt.Errorf("verify public key validity proof: invalid proof data")
 	}
@@ -150,7 +151,8 @@ func (service ConfidentialTransferService) generateZeroCiphertextProofWithReader
 	return ZKProofData{Discriminator: 1, Context: context, Proof: proof[:]}, nil
 }
 
-func (service ConfidentialTransferService) VerifyZeroCiphertextProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyZeroCiphertextProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	if data.Discriminator != 1 || len(data.Context) != 96 || len(data.Proof) != 96 {
 		return fmt.Errorf("verify zero ciphertext proof: invalid proof data")
 	}

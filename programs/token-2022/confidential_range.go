@@ -49,7 +49,8 @@ func (service ConfidentialTransferService) generateBatchedRangeProofWithReader(c
 	return ZKProofData{Discriminator: discriminator, Context: context, Proof: encoded}, nil
 }
 
-func (service ConfidentialTransferService) VerifyBatchedRangeProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyBatchedRangeProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	proofSize, totalBits, err := service.batchedRangeVerificationParameters(data.Discriminator)
 	if err != nil || len(data.Context) != 264 || len(data.Proof) != proofSize {
 		return fmt.Errorf("verify batched range proof: invalid proof data")

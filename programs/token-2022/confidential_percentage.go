@@ -110,7 +110,8 @@ func (service ConfidentialTransferService) generatePercentageWithCapProofWithRea
 }
 
 // VerifyPercentageWithCapProof must be coupled with a range proof on the percentage commitment to prevent scalar-field wrapping.
-func (service ConfidentialTransferService) VerifyPercentageWithCapProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyPercentageWithCapProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	if data.Discriminator != 5 || len(data.Context) != 104 || len(data.Proof) != 256 {
 		return fmt.Errorf("verify percentage with cap proof: invalid proof data")
 	}

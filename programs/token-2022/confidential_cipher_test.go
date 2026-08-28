@@ -26,6 +26,21 @@ func TestConfidentialTransferAECipherRFC8452Vector(t *testing.T) {
 	}
 }
 
+func TestConfidentialTransferGenerateAEKey(t *testing.T) {
+	service := ConfidentialTransferService{}
+	first, err := service.GenerateAEKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.GenerateAEKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == (AEKey{}) || first == second {
+		t.Fatal("generated AE keys are not unique non-zero values")
+	}
+}
+
 func TestConfidentialTransferAECipherAuthenticates(t *testing.T) {
 	service := ConfidentialTransferService{}
 	key := AEKey{1, 2, 3, 4}

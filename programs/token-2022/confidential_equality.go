@@ -90,7 +90,8 @@ func (service ConfidentialTransferService) generateCiphertextCiphertextEqualityP
 	return ZKProofData{Discriminator: 2, Context: context, Proof: proof[:]}, nil
 }
 
-func (service ConfidentialTransferService) VerifyCiphertextCiphertextEqualityProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyCiphertextCiphertextEqualityProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	if data.Discriminator != 2 || len(data.Context) != 192 || len(data.Proof) != 224 {
 		return fmt.Errorf("verify ciphertext equality proof: invalid proof data")
 	}
@@ -238,7 +239,8 @@ func (service ConfidentialTransferService) generateCiphertextCommitmentEqualityP
 	return ZKProofData{Discriminator: 3, Context: context, Proof: proof[:]}, nil
 }
 
-func (service ConfidentialTransferService) VerifyCiphertextCommitmentEqualityProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyCiphertextCommitmentEqualityProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	if data.Discriminator != 3 || len(data.Context) != 128 || len(data.Proof) != 192 {
 		return fmt.Errorf("verify ciphertext commitment equality proof: invalid proof data")
 	}

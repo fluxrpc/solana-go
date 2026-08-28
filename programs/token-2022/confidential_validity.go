@@ -27,7 +27,8 @@ func (service ConfidentialTransferService) generateGroupedCiphertext2HandlesVali
 	return service.generateGroupedCiphertextValidityProof(publicKeys[:], [][]byte{ciphertext[:]}, []uint64{amount}, []PedersenOpening{opening}, 9, "grouped-ciphertext-validity-2-handles-instruction", random)
 }
 
-func (service ConfidentialTransferService) VerifyGroupedCiphertext2HandlesValidityProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyGroupedCiphertext2HandlesValidityProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	return service.verifyGroupedCiphertextValidityProof(data, 2, 1, 9, "grouped-ciphertext-validity-2-handles-instruction")
 }
 
@@ -39,7 +40,8 @@ func (service ConfidentialTransferService) generateBatchedGroupedCiphertext2Hand
 	return service.generateGroupedCiphertextValidityProof(publicKeys[:], [][]byte{ciphertexts[0][:], ciphertexts[1][:]}, amounts[:], openings[:], 10, "batched-grouped-ciphertext-validity-2-handles-instruction", random)
 }
 
-func (service ConfidentialTransferService) VerifyBatchedGroupedCiphertext2HandlesValidityProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyBatchedGroupedCiphertext2HandlesValidityProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	return service.verifyGroupedCiphertextValidityProof(data, 2, 2, 10, "batched-grouped-ciphertext-validity-2-handles-instruction")
 }
 
@@ -51,7 +53,8 @@ func (service ConfidentialTransferService) generateGroupedCiphertext3HandlesVali
 	return service.generateGroupedCiphertextValidityProof(publicKeys[:], [][]byte{ciphertext[:]}, []uint64{amount}, []PedersenOpening{opening}, 11, "grouped-ciphertext-validity-3-handles-instruction", random)
 }
 
-func (service ConfidentialTransferService) VerifyGroupedCiphertext3HandlesValidityProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyGroupedCiphertext3HandlesValidityProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	return service.verifyGroupedCiphertextValidityProof(data, 3, 1, 11, "grouped-ciphertext-validity-3-handles-instruction")
 }
 
@@ -63,7 +66,8 @@ func (service ConfidentialTransferService) generateBatchedGroupedCiphertext3Hand
 	return service.generateGroupedCiphertextValidityProof(publicKeys[:], [][]byte{ciphertexts[0][:], ciphertexts[1][:]}, amounts[:], openings[:], 12, "batched-grouped-ciphertext-validity-3-handles-instruction", random)
 }
 
-func (service ConfidentialTransferService) VerifyBatchedGroupedCiphertext3HandlesValidityProof(data ZKProofData) error {
+func (service ConfidentialTransferService) VerifyBatchedGroupedCiphertext3HandlesValidityProof(data ZKProofData) (err error) {
+	defer service.classifyInvalidProof(&err)
 	return service.verifyGroupedCiphertextValidityProof(data, 3, 2, 12, "batched-grouped-ciphertext-validity-3-handles-instruction")
 }
 

@@ -4,32 +4,35 @@ import "fmt"
 
 func (service ConfidentialTransferService) VerifyZKProofData(data ZKProofData) error {
 	if err := service.validateZKProofData(data); err != nil {
-		return err
+		return service.invalidProofError(err)
 	}
+	var err error
 	switch data.Discriminator {
 	case 1:
-		return service.VerifyZeroCiphertextProof(data)
+		err = service.VerifyZeroCiphertextProof(data)
 	case 2:
-		return service.VerifyCiphertextCiphertextEqualityProof(data)
+		err = service.VerifyCiphertextCiphertextEqualityProof(data)
 	case 3:
-		return service.VerifyCiphertextCommitmentEqualityProof(data)
+		err = service.VerifyCiphertextCommitmentEqualityProof(data)
 	case 4:
-		return service.VerifyPubkeyValidityProof(data)
+		err = service.VerifyPubkeyValidityProof(data)
 	case 5:
-		return service.VerifyPercentageWithCapProof(data)
+		err = service.VerifyPercentageWithCapProof(data)
 	case 6, 7, 8:
-		return service.VerifyBatchedRangeProof(data)
+		err = service.VerifyBatchedRangeProof(data)
 	case 9:
-		return service.VerifyGroupedCiphertext2HandlesValidityProof(data)
+		err = service.VerifyGroupedCiphertext2HandlesValidityProof(data)
 	case 10:
-		return service.VerifyBatchedGroupedCiphertext2HandlesValidityProof(data)
+		err = service.VerifyBatchedGroupedCiphertext2HandlesValidityProof(data)
 	case 11:
-		return service.VerifyGroupedCiphertext3HandlesValidityProof(data)
+		err = service.VerifyGroupedCiphertext3HandlesValidityProof(data)
 	case 12:
-		return service.VerifyBatchedGroupedCiphertext3HandlesValidityProof(data)
-	default:
-		return fmt.Errorf("verify ZK proof data: unsupported discriminator %d", data.Discriminator)
+		err = service.VerifyBatchedGroupedCiphertext3HandlesValidityProof(data)
 	}
+	if err != nil {
+		return service.invalidProofError(err)
+	}
+	return nil
 }
 
 func (service ConfidentialTransferService) validateZKProofData(data ZKProofData) error {

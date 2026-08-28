@@ -51,7 +51,7 @@ func (service ConfidentialTransferService) GenerateConfidentialWithdrawProofs(ac
 		return ConfidentialWithdrawProofBundle{}, 0, err
 	}
 	if current < amount {
-		return ConfidentialWithdrawProofBundle{}, 0, fmt.Errorf("generate confidential withdraw proofs: insufficient funds")
+		return ConfidentialWithdrawProofBundle{}, 0, service.insufficientFundsError(fmt.Errorf("generate confidential withdraw proofs: insufficient funds"))
 	}
 	remaining := current - amount
 	opening, err := service.GeneratePedersenOpening()
@@ -205,7 +205,7 @@ func (service ConfidentialTransferService) confidentialAmountAfterOperation(curr
 		return newAmount, ciphertext, err
 	}
 	if currentAmount < amount {
-		return 0, ElGamalCiphertext{}, fmt.Errorf("generate confidential amount proofs: insufficient funds")
+		return 0, ElGamalCiphertext{}, service.insufficientFundsError(fmt.Errorf("generate confidential amount proofs: insufficient funds"))
 	}
 	ciphertext, err := service.SubtractElGamalCiphertexts(currentCiphertext, amountCiphertext)
 	return currentAmount - amount, ciphertext, err

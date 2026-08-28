@@ -14,9 +14,13 @@ func (service ConfidentialTransferService) DecodePedersenCommitmentU32(target Pe
 func (service ConfidentialTransferService) DecryptElGamalU32(secret ElGamalSecretKey, ciphertext ElGamalCiphertext) (uint32, error) {
 	target, err := service.DecryptElGamalTarget(secret, ciphertext)
 	if err != nil {
-		return 0, err
+		return 0, service.decryptionError(err)
 	}
-	return service.DecodePedersenCommitmentU32(target)
+	amount, err := service.DecodePedersenCommitmentU32(target)
+	if err != nil {
+		return 0, service.decryptionError(err)
+	}
+	return amount, nil
 }
 
 func (service ConfidentialTransferService) DecryptGroupedElGamal2U32(secret ElGamalSecretKey, ciphertext GroupedElGamalCiphertext2Handles, index int) (uint32, error) {
@@ -38,14 +42,14 @@ func (service ConfidentialTransferService) DecryptGroupedElGamal3U32(secret ElGa
 func (service ConfidentialTransferService) DecryptPendingBalance(secret ElGamalSecretKey, low, high ElGamalCiphertext) (uint64, error) {
 	lowAmount, err := service.decryptElGamalU32(secret, low, service.discreteLog)
 	if err != nil {
-		return 0, err
+		return 0, service.decryptionError(err)
 	}
 	if lowAmount > 65535 {
-		return 0, fmt.Errorf("decrypt pending balance: low amount exceeds 16 bits")
+		return 0, service.decryptionError(fmt.Errorf("decrypt pending balance: low amount exceeds 16 bits"))
 	}
 	highAmount, err := service.decryptElGamalU32(secret, high, service.discreteLog)
 	if err != nil {
-		return 0, err
+		return 0, service.decryptionError(err)
 	}
 	return service.CombineAmount(uint16(lowAmount), highAmount), nil
 }

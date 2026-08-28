@@ -154,7 +154,11 @@ func (service ConfidentialTransferService) availableBalanceAfterSpend(key AEKey,
 		return 0, err
 	}
 	if available < amount {
-		return 0, fmt.Errorf("new decryptable available balance: %s", underflow)
+		err := fmt.Errorf("new decryptable available balance: %s", underflow)
+		if underflow == "insufficient funds" {
+			return 0, service.insufficientFundsError(err)
+		}
+		return 0, service.invalidInputError(err)
 	}
 	return available - amount, nil
 }

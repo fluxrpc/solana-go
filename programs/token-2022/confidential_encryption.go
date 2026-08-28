@@ -223,9 +223,9 @@ func (service ConfidentialTransferService) GroupedElGamalCiphertext3Handle(ciphe
 	return service.groupedElGamalHandle(ciphertext[:], 3, index)
 }
 
-func (ConfidentialTransferService) SplitAmount(amount uint64) (uint16, uint32, error) {
+func (service ConfidentialTransferService) SplitAmount(amount uint64) (uint16, uint32, error) {
 	if amount >= uint64(1)<<48 {
-		return 0, 0, fmt.Errorf("split confidential amount: amount exceeds 48 bits")
+		return 0, 0, service.invalidInputError(fmt.Errorf("split confidential amount: amount exceeds 48 bits"))
 	}
 	return uint16(amount), uint32(amount >> 16), nil
 }

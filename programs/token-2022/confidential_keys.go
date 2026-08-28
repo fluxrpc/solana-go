@@ -1,6 +1,7 @@
 package token2022
 
 import (
+	"crypto/rand"
 	"crypto/sha3"
 	"fmt"
 
@@ -15,6 +16,14 @@ type ElGamalSecretKey [32]byte
 
 type ConfidentialTransferSigner interface {
 	Sign(message []byte) (solana.Signature, error)
+}
+
+func (ConfidentialTransferService) GenerateAEKey() (AEKey, error) {
+	key := AEKey{}
+	if _, err := rand.Read(key[:]); err != nil {
+		return AEKey{}, fmt.Errorf("generate AE key: %w", err)
+	}
+	return key, nil
 }
 
 func (ConfidentialTransferService) DeriveAEKeyFromSeedLegacy(seed []byte) (AEKey, error) {

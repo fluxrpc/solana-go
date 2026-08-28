@@ -30,14 +30,14 @@ func (ConfidentialTransferService) EncryptAEAmountWithNonce(key AEKey, amount ui
 	return ciphertext, nil
 }
 
-func (ConfidentialTransferService) DecryptAEAmount(key AEKey, ciphertext AeCiphertext) (uint64, error) {
+func (service ConfidentialTransferService) DecryptAEAmount(key AEKey, ciphertext AeCiphertext) (uint64, error) {
 	cipher, err := siv.NewGCM(key[:])
 	if err != nil {
-		return 0, fmt.Errorf("decrypt confidential amount: %w", err)
+		return 0, service.decryptionError(fmt.Errorf("decrypt confidential amount: %w", err))
 	}
 	plaintext, err := cipher.Open(nil, ciphertext[:12], ciphertext[12:], nil)
 	if err != nil {
-		return 0, fmt.Errorf("decrypt confidential amount: authenticate: %w", err)
+		return 0, service.decryptionError(fmt.Errorf("decrypt confidential amount: authenticate: %w", err))
 	}
 	return binary.LittleEndian.Uint64(plaintext), nil
 }
