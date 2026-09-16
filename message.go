@@ -126,6 +126,10 @@ type Message struct {
 	// List of address table lookups used to load additional accounts
 	// for this transaction. Only present in versioned (V0+) messages.
 	AddressTableLookups MessageAddressTableLookupSlice `json:"addressTableLookups"`
+
+	// Table contents supplied by SetAddressTables, keyed by table address.
+	addressTables map[PublicKey]PublicKeySlice
+	resolved      bool
 }
 
 // GetVersion returns the message version.
@@ -162,9 +166,9 @@ func (mx *Message) AddAddressTableLookup(lookup MessageAddressTableLookup) *Mess
 	return mx
 }
 
-// ErrAddressTablesNotSet is returned by AccountMetaList when the message is
-// versioned and references address table lookups: this package carries no
-// lookup-table resolution, so the full account list cannot be produced.
+// ErrAddressTablesNotSet is returned when a versioned message references
+// address table lookups whose contents have not been supplied with
+// SetAddressTables.
 var ErrAddressTablesNotSet = errors.New("address tables not set: cannot list account metas for a versioned message with lookups")
 
 // Account returns the static account key at index. It does not resolve
