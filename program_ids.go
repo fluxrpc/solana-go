@@ -53,13 +53,9 @@ var (
 	// Maps a wallet address to its associated token accounts.
 	SPLAssociatedTokenAccountProgramID = MustPublicKeyFromBase58("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
 
-	// Validates a UTF-8 memo and verifies provided accounts signed the
-	// transaction, logging the memo to the transaction log.
-	MemoProgramID = MustPublicKeyFromBase58("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
-
-	// MemoProgramIDV1 is the deprecated v1 Memo program; some legacy
-	// transactions still reference it.
+	MemoProgramID   = MustPublicKeyFromBase58("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
 	MemoProgramIDV1 = MustPublicKeyFromBase58("Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo")
+	MemoProgramIDV4 = MustPublicKeyFromBase58("Memo4c2pN8afCj432Lb7RMVKi9PbQnnW7ewFFaV3oAH")
 
 	TokenMetadataProgramID = MustPublicKeyFromBase58("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
 )
