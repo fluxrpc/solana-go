@@ -35,10 +35,10 @@ func DecodeLookupTable(data []byte) (LookupTable, error) {
 		LastExtendedSlot:           dec.ReadUint64(),
 		LastExtendedSlotStartIndex: dec.ReadUint8(),
 	}
-	// The Option's payload is always present, so the key is read either way.
-	hasAuthority := dec.ReadOption()
-	authority := dec.ReadPublicKey()
-	if hasAuthority {
+	// Addresses start at the fixed metadata boundary even without an authority.
+	// Keep the escaping key inside the branch so frozen tables do not allocate it.
+	if dec.ReadOption() {
+		authority := dec.ReadPublicKey()
 		table.Authority = &authority
 	}
 	if err := dec.Err(); err != nil {

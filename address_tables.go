@@ -32,14 +32,25 @@ func (mx *Message) GetAddressTableLookups() MessageAddressTableLookupSlice {
 // lookups, then every readonly one. Compiled instructions index into that
 // order, so it is not arbitrary.
 func (mx *Message) GetAddressTableLookupAccounts() (PublicKeySlice, error) {
-	numLookups := mx.AddressTableLookups.NumLookups()
+	return mx.lookupAccounts(nil)
+}
+
+// lookupAccounts fills a single allocation in [prefix][writable][readonly]
+// order. Each table is fetched once, and no intermediate key slices are built.
+func (mx *Message) lookupAccounts(prefix []PublicKey) (PublicKeySlice, error) {
+	numLookups, numWritable := 0, 0
+	for i := range mx.AddressTableLookups {
+		lookup := &mx.AddressTableLookups[i]
+		numWritable += len(lookup.WritableIndexes)
+		numLookups += len(lookup.WritableIndexes) + len(lookup.ReadonlyIndexes)
+	}
 	if numLookups > 0 && len(mx.addressTables) == 0 {
 		return nil, ErrAddressTablesNotSet
 	}
 
-	numWritable := mx.AddressTableLookups.NumWritableLookups()
-	writable := make(PublicKeySlice, 0, numWritable)
-	readonly := make(PublicKeySlice, 0, numLookups-numWritable)
+	accounts := make(PublicKeySlice, len(prefix)+numLookups)
+	copy(accounts, prefix)
+	writable, readonly := len(prefix), len(prefix)+numWritable
 
 	for index := range mx.AddressTableLookups {
 		lookup := &mx.AddressTableLookups[index]
@@ -51,16 +62,18 @@ func (mx *Message) GetAddressTableLookupAccounts() (PublicKeySlice, error) {
 			if int(at) >= len(table) {
 				return nil, fmt.Errorf("%w: %d of %d in %s", ErrAddressTableIndexRange, at, len(table), lookup.AccountKey)
 			}
-			writable = append(writable, table[at])
+			accounts[writable] = table[at]
+			writable++
 		}
 		for _, at := range lookup.ReadonlyIndexes {
 			if int(at) >= len(table) {
 				return nil, fmt.Errorf("%w: %d of %d in %s", ErrAddressTableIndexRange, at, len(table), lookup.AccountKey)
 			}
-			readonly = append(readonly, table[at])
+			accounts[readonly] = table[at]
+			readonly++
 		}
 	}
-	return append(writable, readonly...), nil
+	return accounts, nil
 }
 
 // ResolveLookups appends the looked-up accounts to AccountKeys. It is a no-op
@@ -69,11 +82,15 @@ func (mx *Message) ResolveLookups() error {
 	if mx.resolved {
 		return nil
 	}
-	accounts, err := mx.GetAddressTableLookupAccounts()
-	if err != nil {
-		return err
+	numStatic := len(mx.AccountKeys)
+	if len(mx.AddressTableLookups) > 0 {
+		accounts, err := mx.lookupAccounts(mx.AccountKeys)
+		if err != nil {
+			return err
+		}
+		mx.AccountKeys = accounts
 	}
-	mx.AccountKeys = append(mx.AccountKeys, accounts...)
+	mx.numStaticAccounts = numStatic
 	mx.resolved = true
 	return nil
 }
@@ -88,11 +105,21 @@ func (mx *Message) GetAllKeys() (PublicKeySlice, error) {
 	if mx.resolved {
 		return mx.AccountKeys, nil
 	}
-	accounts, err := mx.GetAddressTableLookupAccounts()
-	if err != nil {
-		return nil, err
+	return mx.lookupAccounts(mx.AccountKeys)
+}
+
+// staticAccountKeys keeps wire encoding and header-based permissions separate
+// from the loaded accounts appended by ResolveLookups.
+func (mx *Message) staticAccountKeys() []PublicKey {
+	if mx.resolved {
+		return mx.AccountKeys[:mx.numStaticAccounts]
 	}
-	all := make(PublicKeySlice, len(mx.AccountKeys), len(mx.AccountKeys)+len(accounts))
-	copy(all, mx.AccountKeys)
-	return append(all, accounts...), nil
+	return mx.AccountKeys
+}
+
+// invalidateLookups drops the loaded suffix before changing lookup descriptors.
+func (mx *Message) invalidateLookups() {
+	mx.AccountKeys = mx.staticAccountKeys()
+	mx.resolved = false
+	mx.numStaticAccounts = 0
 }

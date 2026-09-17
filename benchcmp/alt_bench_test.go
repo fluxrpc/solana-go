@@ -246,12 +246,18 @@ func newALTAccountBenchmarks() []altAccountBenchmark {
 		}
 		return data
 	}
-	return []altAccountBenchmark{
+	cases := []altAccountBenchmark{
 		{name: "Empty", data: build(0)},
 		{name: "8Addresses", data: build(8)},
 		{name: "64Addresses", data: build(64)},
 		{name: "256Addresses", data: build(256)},
 	}
+	for _, test := range cases {
+		data := bytes.Clone(test.data)
+		data[21] = 0
+		cases = append(cases, altAccountBenchmark{name: test.name + "Frozen", data: data})
+	}
+	return cases
 }
 
 func BenchmarkALTAccountDecode(b *testing.B) {

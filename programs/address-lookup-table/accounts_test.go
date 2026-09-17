@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	solana "github.com/fluxrpc/solana-go"
+	bin "github.com/fluxrpc/solana-go/binary"
 )
 
 func buildLookupTable(authority *solana.PublicKey, addresses []solana.PublicKey) []byte {
@@ -60,12 +61,63 @@ func TestDecodeLookupTable(t *testing.T) {
 }
 
 func TestDecodeLookupTableFrozen(t *testing.T) {
-	table, err := DecodeLookupTable(buildLookupTable(nil, []solana.PublicKey{lookupKey(0x09)}))
+	data := buildLookupTable(nil, []solana.PublicKey{lookupKey(0x09)})
+	// Frozen metadata can retain bytes from the former authority.
+	for i := 22; i < lookupTableMetaSize; i++ {
+		data[i] = 0xff
+	}
+	table, err := DecodeLookupTable(data)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if table.Authority != nil {
 		t.Errorf("Authority = %s, want nil", table.Authority)
+	}
+	if len(table.Addresses) != 1 || table.Addresses[0] != lookupKey(0x09) {
+		t.Fatal("frozen table decoded addresses at the wrong offset")
+	}
+}
+
+func TestDecodeLookupTableInvalidAuthorityTag(t *testing.T) {
+	data := buildLookupTable(nil, nil)
+	data[21] = 2
+	if _, err := DecodeLookupTable(data); !errors.Is(err, bin.ErrInvalidTag) {
+		t.Fatalf("got %v, want invalid option tag", err)
+	}
+}
+
+func TestDecodeLookupTableOwnsData(t *testing.T) {
+	authority := lookupKey(0xaa)
+	data := buildLookupTable(&authority, []solana.PublicKey{lookupKey(0x09)})
+	table, err := DecodeLookupTable(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clear(data)
+	if table.Authority == nil || *table.Authority != authority || table.Addresses[0] != lookupKey(0x09) {
+		t.Fatal("decoded table aliases input data")
+	}
+}
+
+var sinkDecodedLookupTable LookupTable
+
+func TestDecodeFrozenLookupTableAllocations(t *testing.T) {
+	for _, count := range []int{0, 8, 256} {
+		data := buildLookupTable(nil, make([]solana.PublicKey, count))
+		allocs := testing.AllocsPerRun(100, func() {
+			var err error
+			sinkDecodedLookupTable, err = DecodeLookupTable(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		want := 0.0
+		if count > 0 {
+			want = 1
+		}
+		if allocs > want {
+			t.Errorf("%d addresses: got %g allocations, want at most %g", count, allocs, want)
+		}
 	}
 }
 
