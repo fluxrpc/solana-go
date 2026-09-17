@@ -110,6 +110,8 @@ type Message struct {
 	// including by the instructions and for signatures.
 	// The first `message.header.numRequiredSignatures` public keys
 	// must sign the transaction.
+	// ResolveLookups appends loaded keys; serialization still emits only the
+	// static prefix. Do not replace this slice on a resolved message.
 	AccountKeys []PublicKey `json:"accountKeys"`
 
 	// Details the account types and signatures required by the transaction.
@@ -126,6 +128,11 @@ type Message struct {
 	// List of address table lookups used to load additional accounts
 	// for this transaction. Only present in versioned (V0+) messages.
 	AddressTableLookups MessageAddressTableLookupSlice `json:"addressTableLookups"`
+
+	// Table contents supplied by SetAddressTables, keyed by table address.
+	addressTables     map[PublicKey]PublicKeySlice
+	resolved          bool
+	numStaticAccounts int
 }
 
 // GetVersion returns the message version.
@@ -147,28 +154,30 @@ func (mx *Message) SetVersion(version MessageVersion) (*Message, error) {
 }
 
 // SetAddressTableLookups (re)sets the lookups used by this message,
-// and sets the message version to V0.
+// drops any previously resolved accounts, and sets the message version to V0.
 func (mx *Message) SetAddressTableLookups(lookups []MessageAddressTableLookup) *Message {
+	mx.invalidateLookups()
 	mx.AddressTableLookups = lookups
 	mx.version = MessageVersionV0
 	return mx
 }
 
 // AddAddressTableLookup adds a new lookup to the message,
-// and sets the message version to V0.
+// drops any previously resolved accounts, and sets the message version to V0.
 func (mx *Message) AddAddressTableLookup(lookup MessageAddressTableLookup) *Message {
+	mx.invalidateLookups()
 	mx.AddressTableLookups = append(mx.AddressTableLookups, lookup)
 	mx.version = MessageVersionV0
 	return mx
 }
 
-// ErrAddressTablesNotSet is returned by AccountMetaList when the message is
-// versioned and references address table lookups: this package carries no
-// lookup-table resolution, so the full account list cannot be produced.
+// ErrAddressTablesNotSet is returned when a versioned message references
+// address table lookups that have not been supplied or, for AccountMetaList,
+// resolved with ResolveLookups.
 var ErrAddressTablesNotSet = errors.New("address tables not set: cannot list account metas for a versioned message with lookups")
 
-// Account returns the static account key at index. It does not resolve
-// address table lookups.
+// Account returns the account key at index, including loaded accounts after
+// ResolveLookups. It does not resolve lookups itself.
 func (mx *Message) Account(index uint16) (PublicKey, error) {
 	if int(index) < len(mx.AccountKeys) {
 		return mx.AccountKeys[index], nil
@@ -185,20 +194,25 @@ func (mx *Message) UnmarshalBase64(b64 string) error {
 	return mx.UnmarshalBinary(data)
 }
 
-// AccountMetaList returns the static account keys with their signer/writable
-// roles derived from the message header. For a versioned message that
-// references address table lookups it returns ErrAddressTablesNotSet, since
-// the looked-up accounts cannot be listed without resolution.
+// AccountMetaList returns account keys with their signer/writable roles. A
+// versioned message with lookups must first be resolved with ResolveLookups;
+// otherwise it returns ErrAddressTablesNotSet.
 func (mx *Message) AccountMetaList() (AccountMetaSlice, error) {
-	if mx.version != MessageVersionLegacy && mx.AddressTableLookups.NumLookups() > 0 {
+	if !mx.resolved && mx.version != MessageVersionLegacy && mx.AddressTableLookups.NumLookups() > 0 {
 		return nil, ErrAddressTablesNotSet
 	}
+	numStatic := len(mx.staticAccountKeys())
+	writableEnd := numStatic + mx.AddressTableLookups.NumWritableLookups()
 	out := make(AccountMetaSlice, len(mx.AccountKeys))
 	for i, key := range mx.AccountKeys {
+		writable := i < writableEnd
+		if i < numStatic {
+			writable = mx.staticIndexIsWritable(i)
+		}
 		out[i] = &AccountMeta{
 			PublicKey:  key,
-			IsSigner:   i < int(mx.Header.NumRequiredSignatures),
-			IsWritable: mx.staticIndexIsWritable(i),
+			IsSigner:   i < numStatic && i < int(mx.Header.NumRequiredSignatures),
+			IsWritable: writable,
 		}
 	}
 	return out, nil
@@ -207,7 +221,7 @@ func (mx *Message) AccountMetaList() (AccountMetaSlice, error) {
 // IsWritableStatic reports whether the account is a writable account in the
 // static accounts list, ignoring the accounts in the address table lookups.
 func (mx *Message) IsWritableStatic(account PublicKey) bool {
-	for i, key := range mx.AccountKeys {
+	for i, key := range mx.staticAccountKeys() {
 		if key == account {
 			return mx.staticIndexIsWritable(i)
 		}
@@ -222,7 +236,7 @@ func (mx *Message) staticIndexIsWritable(index int) bool {
 	h := mx.Header
 	if index >= int(h.NumRequiredSignatures) {
 		// Use int arithmetic to avoid underflow (Rust saturating_sub).
-		numWritableUnsigned := max(len(mx.AccountKeys)-int(h.NumRequiredSignatures)-int(h.NumReadonlyUnsignedAccounts), 0)
+		numWritableUnsigned := max(len(mx.staticAccountKeys())-int(h.NumRequiredSignatures)-int(h.NumReadonlyUnsignedAccounts), 0)
 		return index-int(h.NumRequiredSignatures) < numWritableUnsigned
 	}
 	return index < max(int(h.NumRequiredSignatures)-int(h.NumReadonlySignedAccounts), 0)
@@ -231,10 +245,7 @@ func (mx *Message) staticIndexIsWritable(index int) bool {
 // Signers returns the pubkeys of all accounts that are signers:
 // always the first `NumRequiredSignatures` account keys.
 func (mx *Message) Signers() []PublicKey {
-	numSigners := int(mx.Header.NumRequiredSignatures)
-	if numSigners > len(mx.AccountKeys) {
-		numSigners = len(mx.AccountKeys)
-	}
+	numSigners := min(int(mx.Header.NumRequiredSignatures), len(mx.staticAccountKeys()))
 	out := make([]PublicKey, numSigners)
 	copy(out, mx.AccountKeys[:numSigners])
 	return out
@@ -242,7 +253,7 @@ func (mx *Message) Signers() []PublicKey {
 
 // IsSigner reports whether the given account is a signer of the message.
 func (mx *Message) IsSigner(account PublicKey) bool {
-	for idx, key := range mx.AccountKeys {
+	for idx, key := range mx.staticAccountKeys() {
 		if key == account {
 			return idx < int(mx.Header.NumRequiredSignatures)
 		}
@@ -254,10 +265,11 @@ func (mx *Message) IsSigner(account PublicKey) bool {
 // is a base58 string or a small integer, so the reflection-based encoder has
 // nothing to offer here. Legacy messages omit the addressTableLookups key.
 func (mx Message) MarshalJSON() ([]byte, error) {
+	keys := mx.staticAccountKeys()
 	// Upper-bound the output size so the buffer never reallocates: fixed
 	// skeleton plus per-element worst cases (44-char base58 keys, 3-digit
 	// indexes, and at most 2 base58 characters per instruction-data byte).
-	size := 192 + len(mx.AccountKeys)*(base58.EncodedMaxLen32+3)
+	size := 192 + len(keys)*(base58.EncodedMaxLen32+3)
 	for i := range mx.Instructions {
 		ins := &mx.Instructions[i]
 		size += 48 + 4*len(ins.Accounts) + 2*len(ins.Data)
@@ -272,12 +284,12 @@ func (mx Message) MarshalJSON() ([]byte, error) {
 	buf := make([]byte, 0, size)
 
 	buf = append(buf, `{"accountKeys":[`...)
-	for i := range mx.AccountKeys {
+	for i := range keys {
 		if i > 0 {
 			buf = append(buf, ',')
 		}
 		buf = append(buf, '"')
-		buf = base58.AppendEncode32(buf, (*[32]byte)(&mx.AccountKeys[i]))
+		buf = base58.AppendEncode32(buf, (*[32]byte)(&keys[i]))
 		buf = append(buf, '"')
 	}
 
@@ -364,6 +376,9 @@ func (mx *Message) UnmarshalJSON(data []byte) error {
 	if err := sonic.Unmarshal(data, &aux); err != nil {
 		return err
 	}
+	mx.addressTables = nil
+	mx.resolved = false
+	mx.numStaticAccounts = 0
 	mx.AccountKeys = aux.AccountKeys
 	mx.Header = aux.Header
 	mx.RecentBlockhash = aux.RecentBlockhash
@@ -427,8 +442,9 @@ func (mx *Message) marshalV0() ([]byte, error) {
 // bodySize returns the exact encoded size of the version-independent part of
 // the message (header, account keys, blockhash and instructions).
 func (mx *Message) bodySize() int {
+	numKeys := len(mx.staticAccountKeys())
 	size := 3 +
-		shortvecLen(len(mx.AccountKeys)) + PublicKeyLength*len(mx.AccountKeys) +
+		shortvecLen(numKeys) + PublicKeyLength*numKeys +
 		len(mx.RecentBlockhash) +
 		shortvecLen(len(mx.Instructions))
 	for i := range mx.Instructions {
@@ -448,9 +464,10 @@ func (mx *Message) appendBody(buf []byte) []byte {
 		mx.Header.NumReadonlyUnsignedAccounts,
 	)
 
-	buf = appendShortvecLen(buf, len(mx.AccountKeys))
-	for i := range mx.AccountKeys {
-		buf = append(buf, mx.AccountKeys[i][:]...)
+	keys := mx.staticAccountKeys()
+	buf = appendShortvecLen(buf, len(keys))
+	for i := range keys {
+		buf = append(buf, keys[i][:]...)
 	}
 
 	buf = append(buf, mx.RecentBlockhash[:]...)
@@ -482,6 +499,8 @@ func (mx *Message) UnmarshalBinary(data []byte) error {
 // unmarshalBinaryConsumed decodes a legacy or versioned (V0) message and
 // returns the number of bytes consumed, ignoring any trailing bytes.
 func (mx *Message) unmarshalBinaryConsumed(data []byte) (int, error) {
+	mx.invalidateLookups()
+	mx.addressTables = nil
 	if len(data) == 0 {
 		return 0, errors.New("message data is empty")
 	}

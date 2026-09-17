@@ -159,3 +159,86 @@ func BenchmarkMessage_UnmarshalJSON(b *testing.B) {
 		sinkGaglMsg = m
 	})
 }
+
+var (
+	sinkFluxLookupAccounts flux.PublicKeySlice
+	sinkGaglLookupAccounts gagl.PublicKeySlice
+)
+
+func altBenchMessages() (*flux.Message, *gagl.Message) {
+	key := func(a, b byte) (out [32]byte) {
+		out[0], out[1] = a, b
+		return out
+	}
+
+	fluxMsg := &flux.Message{AccountKeys: []flux.PublicKey{key(0, 1), key(0, 2), key(0, 3)}}
+	gaglMsg := &gagl.Message{AccountKeys: []gagl.PublicKey{key(0, 1), key(0, 2), key(0, 3)}}
+	fluxTables := map[flux.PublicKey]flux.PublicKeySlice{}
+	gaglTables := map[gagl.PublicKey]gagl.PublicKeySlice{}
+
+	for table := byte(0); table < 4; table++ {
+		writable := make([]uint8, 8)
+		readonly := make([]uint8, 8)
+		for i := range writable {
+			writable[i] = uint8(i)
+			readonly[i] = uint8(i + 8)
+		}
+		addresses := make([]flux.PublicKey, 256)
+		gaglAddresses := make([]gagl.PublicKey, 256)
+		for i := range addresses {
+			addresses[i] = key(table+1, byte(i))
+			gaglAddresses[i] = key(table+1, byte(i))
+		}
+		account := key(0xF0, table)
+		fluxMsg.AddressTableLookups = append(fluxMsg.AddressTableLookups, flux.MessageAddressTableLookup{
+			AccountKey: account, WritableIndexes: writable, ReadonlyIndexes: readonly,
+		})
+		gaglMsg.AddressTableLookups = append(gaglMsg.AddressTableLookups, gagl.MessageAddressTableLookup{
+			AccountKey: account, WritableIndexes: writable, ReadonlyIndexes: readonly,
+		})
+		fluxTables[account] = addresses
+		gaglTables[account] = gaglAddresses
+	}
+
+	if err := fluxMsg.SetAddressTables(fluxTables); err != nil {
+		panic(err)
+	}
+	if err := gaglMsg.SetAddressTables(gaglTables); err != nil {
+		panic(err)
+	}
+	return fluxMsg, gaglMsg
+}
+
+func BenchmarkMessage_LookupAccounts(b *testing.B) {
+	fluxMsg, gaglMsg := altBenchMessages()
+
+	b.Run("Flux", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkFluxLookupAccounts, _ = fluxMsg.GetAddressTableLookupAccounts()
+		}
+	})
+	b.Run("Gagliardetto", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkGaglLookupAccounts, _ = gaglMsg.GetAddressTableLookupAccounts()
+		}
+	})
+}
+
+func BenchmarkMessage_GetAllKeys(b *testing.B) {
+	fluxMsg, gaglMsg := altBenchMessages()
+
+	b.Run("Flux", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkFluxLookupAccounts, _ = fluxMsg.GetAllKeys()
+		}
+	})
+	b.Run("Gagliardetto", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkGaglLookupAccounts, _ = gaglMsg.GetAllKeys()
+		}
+	})
+}

@@ -2,6 +2,7 @@ package benchcmp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	flux "github.com/fluxrpc/solana-go"
@@ -212,6 +213,66 @@ func BenchmarkALTDecode(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
 					sinkFoundationALTDecoded, sinkALTErr = foundationalt.DecodeInstruction(test.foundation.Accounts(), test.foundationData)
+				}
+			})
+		})
+	}
+}
+
+var (
+	sinkFluxALTTable       fluxalt.LookupTable
+	sinkFoundationALTTable *foundationalt.AddressLookupTableState
+)
+
+type altAccountBenchmark struct {
+	name string
+	data []byte
+}
+
+func newALTAccountBenchmarks() []altAccountBenchmark {
+	const metaSize = 56
+	build := func(addresses int) []byte {
+		data := make([]byte, metaSize+addresses*32)
+		binary.LittleEndian.PutUint32(data[0:], 1)
+		binary.LittleEndian.PutUint64(data[4:], ^uint64(0))
+		binary.LittleEndian.PutUint64(data[12:], 123_456_789)
+		data[20] = 3
+		data[21] = 1
+		authority := altBenchmarkKey(1)
+		copy(data[22:], authority[:])
+		for index := 0; index < addresses; index++ {
+			address := altBenchmarkKey(byte(index))
+			copy(data[metaSize+index*32:], address[:])
+		}
+		return data
+	}
+	cases := []altAccountBenchmark{
+		{name: "Empty", data: build(0)},
+		{name: "8Addresses", data: build(8)},
+		{name: "64Addresses", data: build(64)},
+		{name: "256Addresses", data: build(256)},
+	}
+	for _, test := range cases {
+		data := bytes.Clone(test.data)
+		data[21] = 0
+		cases = append(cases, altAccountBenchmark{name: test.name + "Frozen", data: data})
+	}
+	return cases
+}
+
+func BenchmarkALTAccountDecode(b *testing.B) {
+	for _, test := range newALTAccountBenchmarks() {
+		b.Run(test.name, func(b *testing.B) {
+			b.Run("Flux", func(b *testing.B) {
+				b.ReportAllocs()
+				for b.Loop() {
+					sinkFluxALTTable, sinkALTErr = fluxalt.DecodeLookupTable(test.data)
+				}
+			})
+			b.Run("Foundation", func(b *testing.B) {
+				b.ReportAllocs()
+				for b.Loop() {
+					sinkFoundationALTTable, sinkALTErr = foundationalt.DecodeAddressLookupTableState(test.data)
 				}
 			})
 		})
