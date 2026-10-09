@@ -2,9 +2,8 @@ package associatedtokenaccount
 
 import solana "github.com/fluxrpc/solana-go"
 
-// RecoverNested moves the tokens of an associated token account that is owned
-// by another associated token account into the wallet's own account for the
-// nested mint, then closes the nested account.
+// RecoverNested recovers tokens held by an associated token account that is
+// nested inside another one.
 type RecoverNested struct{ instruction }
 
 func NewRecoverNestedInstruction(nestedAssociatedTokenAccount, nestedMint, destinationAssociatedTokenAccount, ownerAssociatedTokenAccount, ownerMint, wallet, tokenProgram solana.PublicKey) *RecoverNested {
