@@ -13,7 +13,7 @@
 | `system` | 14 |
 | `vote` | 20 |
 
-SPL programs are intentionally outside this first native-program layer.
+SPL programs are intentionally outside this first native-program layer, except `associated-token-account`, which only builds the create instruction (CreateIdempotent).
 
 This directory contains opt-in, handwritten codecs for Solana programs. Each
 program package owns its instruction layouts, account ordering, and decoding
