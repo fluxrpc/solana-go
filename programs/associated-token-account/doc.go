@@ -1,3 +1,3 @@
-// Package associatedtokenaccount provides the instruction builder for the SPL
+// Package associatedtokenaccount provides deterministic codecs for the SPL
 // Associated Token Account Program.
 package associatedtokenaccount
