@@ -176,6 +176,17 @@ func (c *Client) GetAccountInfoImmutable(ctx context.Context, account solana.Pub
 	return result, nil
 }
 
+// GetMultipleAccountsImmutable is GetMultipleAccounts for accounts whose data
+// never changes: fetched values are cached without expiry until evicted for
+// idleness. With the cache disabled it behaves exactly like
+// GetMultipleAccounts.
+func (c *Client) GetMultipleAccountsImmutable(ctx context.Context, accounts ...solana.PublicKey) (*GetMultipleAccountsResult, error) {
+	if cache := c.cache.Load(); cache != nil {
+		return c.cachedGetMultipleAccounts(ctx, accounts, cache, true)
+	}
+	return c.GetMultipleAccounts(ctx, accounts...)
+}
+
 // cachedGetAccountInfo is the cache-aware path behind GetAccountInfo.
 func (c *Client) cachedGetAccountInfo(ctx context.Context, account solana.PublicKey, cache *accountCache) (*GetAccountInfoResult, error) {
 	if data, ok := cache.lookup(account); ok {
@@ -204,7 +215,7 @@ func (c *Client) getAccountInfoForCache(ctx context.Context, account solana.Publ
 // cachedGetMultipleAccounts is the cache-aware path behind
 // GetMultipleAccounts: it serves what it can from cache and fetches the
 // deduplicated misses in one call.
-func (c *Client) cachedGetMultipleAccounts(ctx context.Context, accounts []solana.PublicKey, cache *accountCache) (*GetMultipleAccountsResult, error) {
+func (c *Client) cachedGetMultipleAccounts(ctx context.Context, accounts []solana.PublicKey, cache *accountCache, immutable bool) (*GetMultipleAccountsResult, error) {
 	out := &GetMultipleAccountsResult{
 		Value: make([]*Account, len(accounts)),
 	}
@@ -246,7 +257,7 @@ func (c *Client) cachedGetMultipleAccounts(ctx context.Context, accounts []solan
 			out.Value[idx] = value
 		}
 		if value != nil {
-			cache.set(key, value, fetched.Context.Slot, false, false)
+			cache.set(key, value, fetched.Context.Slot, false, immutable)
 		}
 	}
 	return out, nil

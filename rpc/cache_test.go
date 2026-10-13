@@ -402,3 +402,26 @@ func TestCacheHeadSlotAndBlockhash(t *testing.T) {
 		t.Fatal("stale head slot still served")
 	}
 }
+
+func TestCacheGetMultipleAccountsImmutableNeverExpires(t *testing.T) {
+	fake, client := newCountingRPC(t)
+	fake.accounts[cacheKey(1)] = 111
+	fake.accounts[cacheKey(2)] = 222
+	client.EnableCacheWithOpts(&CacheOptions{FreshFor: time.Millisecond, JanitorInterval: -1})
+	defer client.DisableCache()
+	ctx := context.Background()
+
+	res, err := client.GetMultipleAccountsImmutable(ctx, cacheKey(1), cacheKey(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Value[0].Lamports != 111 || res.Value[1].Lamports != 222 {
+		t.Fatalf("values = %+v %+v", res.Value[0], res.Value[1])
+	}
+	time.Sleep(10 * time.Millisecond)
+	client.GetMultipleAccountsImmutable(ctx, cacheKey(1), cacheKey(2))
+	client.GetAccountInfo(ctx, cacheKey(1)) // also served: entry is immutable
+	if a, b := fake.fetchCount(cacheKey(1)), fake.fetchCount(cacheKey(2)); a != 1 || b != 1 {
+		t.Fatalf("network fetches = %d, %d, want 1, 1", a, b)
+	}
+}

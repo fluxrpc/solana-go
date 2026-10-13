@@ -65,7 +65,7 @@ func (c *Client) GetBalanceWithOpts(ctx context.Context, account solana.PublicKe
 // only the deduplicated misses are fetched, in a single call.
 func (c *Client) GetMultipleAccounts(ctx context.Context, accounts ...solana.PublicKey) (*GetMultipleAccountsResult, error) {
 	if cache := c.cache.Load(); cache != nil {
-		return c.cachedGetMultipleAccounts(ctx, accounts, cache)
+		return c.cachedGetMultipleAccounts(ctx, accounts, cache, false)
 	}
 	return c.GetMultipleAccountsWithOpts(ctx, accounts, &GetMultipleAccountsOpts{Encoding: solana.EncodingBase64})
 }
